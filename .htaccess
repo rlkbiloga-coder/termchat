@@ -1,0 +1,42 @@
+# TermChat — regras de segurança e cache para hospedagem Apache.
+# GitHub Pages ignora este arquivo (usa Nginx); ele entra em ação automaticamente
+# se você mover o site para uma hospedagem Apache (cPanel, Hostinger, etc.).
+
+# ── HTTPS obrigatório ──
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# ── cabeçalhos de segurança ──
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(self), notifications=(self), clipboard-write=(self)"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>
+
+# ── bloquear listagem de diretório e acesso a arquivos sensíveis ──
+Options -Indexes
+<FilesMatch "\.(env|json)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
+# manifest.json precisa ser público — libera de novo explicitamente
+<Files "manifest.json">
+  <IfModule mod_authz_core.c>
+    Require all granted
+  </IfModule>
+</Files>
+
+# ── cache de estáticos ──
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType text/css "access plus 7 days"
+  ExpiresByType application/javascript "access plus 7 days"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>

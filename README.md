@@ -18,14 +18,26 @@ Site: https://nicolaswjwkwk.github.io/termchat/
 O site só pede notificação/localização/clipboard no momento em que você instala
 o plugin que precisa da permissão. Painel de estado em *config → permissões*.
 
-## Repositório
+## Repositório (PWA instalável)
 ```
-index.html           app completo (arquivo único, sem dependências)
-plugins.json         manifesto do catálogo de plugins
-server.py            proxy opcional em Python/FastAPI (ver docs/SERVIDOR.md)
-tests/               testes de segurança e estrutura (CI no GitHub Actions)
-docs/                como criar plugins e rodar o servidor
+index.html                 app shell (HTML puro, liga css/js)
+manifest.json               manifesto PWA (ícones, cores, instalável)
+service-worker.js           cache offline do app shell (nunca cacheia chamadas de IA/plugins)
+.htaccess                    cabeçalhos de segurança para hospedagem Apache
+css/style.css                todo o visual do app
+js/app.js                    lógica principal: chat, IA, plugins, explorar, config
+js/auth.js                   ID de dispositivo local e estado de chave verificada (sem servidor de login)
+icons/                        icon-192x192.png, icon-512x512.png, apple-touch-icon.png
+plugins.json                 manifesto do catálogo de plugins
+server.py                    proxy opcional em Python/FastAPI (ver docs/SERVIDOR.md)
+tests/                        testes de segurança e estrutura
+docs/                         como criar plugins e rodar o servidor
 ```
+
+## Instalar como app (PWA)
+No Android/Chrome: menu → "Instalar app". No iPhone/Safari: compartilhar →
+"Adicionar à Tela de Início". O TermChat abre em tela cheia com ícone próprio
+e continua funcionando offline (exceto respostas de IA/plugins, que exigem rede).
 
 ## Rodar localmente
 ```bash
