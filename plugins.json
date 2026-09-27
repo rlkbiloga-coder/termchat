@@ -1,0 +1,19 @@
+{
+  "name": "TermChat",
+  "version": "1.0.0",
+  "description": "Chatbot leve estilo terminal com Explorar de plugins. 100% free e open source.",
+  "license": "MIT",
+  "plugins": [
+    {"id": "weather", "name": "clima", "cat": "dados", "perms": ["geolocation"], "api": "open-meteo (livre, sem chave)"},
+    {"id": "crypto", "name": "cripto", "cat": "dados", "perms": [], "api": "CoinGecko (livre, sem chave)"},
+    {"id": "wiki", "name": "wiki", "cat": "busca", "perms": [], "api": "Wikipedia API (livre)"},
+    {"id": "hn", "name": "tech-news", "cat": "dados", "perms": [], "api": "Hacker News API (livre)"},
+    {"id": "calc", "name": "calc", "cat": "ferramenta", "perms": [], "api": "local (parser próprio, sem eval)"},
+    {"id": "timer", "name": "timer", "cat": "ferramenta", "perms": ["notifications"], "api": "local"},
+    {"id": "notes", "name": "notas", "cat": "pessoal", "perms": [], "api": "localStorage"},
+    {"id": "translate", "name": "tradutor", "cat": "busca", "perms": [], "api": "MyMemory (livre, sem chave)"},
+    {"id": "qr", "name": "qr", "cat": "ferramenta", "perms": [], "api": "api.qrserver (livre)"},
+    {"id": "sysinfo", "name": "sysinfo", "cat": "ferramenta", "perms": [], "api": "local (navigator)"},
+    {"id": "ip", "name": "meu-ip", "cat": "dados", "perms": [], "api": "ipwho.is (livre)"}
+  ]
+}
