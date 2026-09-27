@@ -1,0 +1,6 @@
+{
+  "name": "TermChat",
+  "description": "TermChat — chatbot leve estilo terminal com plugins gratuitos. 100% open source.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
