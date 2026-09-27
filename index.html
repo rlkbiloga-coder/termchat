@@ -3,79 +3,872 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://text.pollinations.ai https://opencode.ai https://api.groq.com https://openrouter.ai; connect-src 'self' https: http://127.0.0.1:11434; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'none'">
-<meta name="description" content="TermChat — chatbot leve estilo terminal com plugins gratuitos. 100% open source.">
-<meta property="og:title" content="TermChat — chatbot terminal com plugins">
-<meta property="og:description" content="TermChat — chatbot leve estilo terminal com plugins gratuitos. 100% open source.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; connect-src 'self' https: http://127.0.0.1:11434; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; frame-src 'self' data: blob:; base-uri 'self'; form-action 'none'">
+<meta name="description" content="TermChat — IDE web avançada com IA, editor de código, explorador de arquivos, terminal e plugins.">
+<meta property="og:title" content="TermChat — Web IDE & AI Development Platform">
+<meta property="og:description" content="TermChat — IDE web avançada com IA, editor de código, explorador de arquivos, terminal e plugins.">
 <meta name="robots" content="index,follow">
-<title>TermChat — chatbot terminal com plugins</title>
+<title>TermChat v2.0 — Web IDE & AI Development Platform</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192x192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="theme-color" content="#0b0f14">
+<meta name="theme-color" content="#06090f">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<header><span class="logo">TermChat</span><span id="status"><span class="dot"></span>boot ok</span></header>
-<nav>
-  <button data-v="chat" class="on">chat</button>
-  <button data-v="explorar">explorar</button>
-  <button data-v="config">config</button>
-</nav>
+<div id="app-container">
 
-<main id="chatView"></main>
+  <!-- 1. TOP TITLEBAR -->
+  <header class="top-titlebar">
+    <div class="titlebar-left">
+      <div class="brand-logo">
+        <span class="brand-glyph">▶</span>
+        <span>TermChat</span>
+      </div>
+      <span class="version-pill">v2.0.0</span>
+    </div>
 
-<div id="exploreView" class="hidden">
-  <div class="explore-top">
-    <input id="pluginSearch" placeholder="buscar plugin…" oninput="renderExplore()">
-  </div>
-  <div class="chip-row" id="catChips"></div>
-  <div class="explore-count" id="exploreCount"></div>
-  <div class="grid" id="pluginGrid"></div>
+    <div class="titlebar-center">
+      <div class="global-search-box" onclick="openCommandPalette()">
+        <span class="search-icon">🔍</span>
+        <input class="global-search-input" readonly placeholder="Buscar arquivos, comandos e configurações... (Ctrl + P)">
+        <span class="kbd-badge">Ctrl P</span>
+      </div>
+    </div>
+
+    <div class="titlebar-right">
+      <div class="model-badge" id="topModelBadge" onclick="toggleModelsDrawer()" title="Clique para trocar de modelo">
+        <span class="model-dot"></span>
+        <span id="topModelName">OpenCode • Gemini 2.5 Pro</span>
+        <span style="color:var(--accent-teal);font-size:10px;font-weight:700">ONLINE</span>
+      </div>
+
+      <div class="plugins-badge-btn" onclick="switchDockTab('plugins')" title="Ver plugins">
+        <span>🔌</span>
+        <span id="topPluginsCount">Plugins 12 ativos</span>
+        <span style="font-size:9px">▾</span>
+      </div>
+
+      <button class="btn-connect-gh" onclick="TermGit.loginWithGitHub()" title="Conectar ao GitHub">
+        <span>🐙</span>
+        <span id="btnConnectText">Conectar</span>
+      </button>
+
+      <button id="voiceMicBtn" class="btn-icon-head" onclick="TermVoice.toggleListen()" title="Comando por voz (Microfone)">
+        🎙️
+      </button>
+
+      <button class="btn-icon-head" onclick="toggleTheme()" title="Alternar tema claro/escuro">
+        ☀️
+      </button>
+
+      <img id="ghUserAvatar" class="avatar-mini" src="icons/icon-192x192.png" onclick="switchDockTab('git')" title="Perfil e Git" alt="Avatar">
+    </div>
+  </header>
+
+  <!-- 2. TOP MENUBAR -->
+  <nav class="top-menubar" id="topMenubar">
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-arquivo')">Arquivo</button>
+      <div id="menu-arquivo" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="createNewFilePrompt()">Novo Arquivo <span class="shortcut">Ctrl+N</span></div>
+        <div class="menu-entry" onclick="TermEditorInst.saveCurrent()">Salvar <span class="shortcut">Ctrl+S</span></div>
+        <div class="menu-entry" onclick="document.getElementById('impFile').click()">Abrir Arquivo / Projeto...</div>
+        <div class="menu-entry separator"></div>
+        <div class="menu-entry" onclick="TermVFS.createSnapshot('Manual'); alert('Snapshot criado com sucesso!')">Criar Snapshot <span class="shortcut">Ctrl+Shift+S</span></div>
+        <div class="menu-entry" onclick="TermGit.exportZip()">Exportar Workspace (JSON)</div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-editar')">Editar</button>
+      <div id="menu-editar" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="TermEditorInst.toggleSearch()">Localizar / Substituir <span class="shortcut">Ctrl+F</span></div>
+        <div class="menu-entry" onclick="document.getElementById('codeTextarea').select()">Selecionar Tudo <span class="shortcut">Ctrl+A</span></div>
+        <div class="menu-entry" onclick="formatCurrentCode()">Formatar Documento <span class="shortcut">Alt+Shift+F</span></div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-selecao')">Seleção</button>
+      <div id="menu-selecao" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="duplicateCurrentLine()">Duplicar Linha <span class="shortcut">Shift+Alt+Down</span></div>
+        <div class="menu-entry" onclick="document.getElementById('codeTextarea').focus()">Expandir Seleção</div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-ver')">Ver</button>
+      <div id="menu-ver" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="toggleSidebar()">Alternar Barra Lateral <span class="shortcut">Ctrl+B</span></div>
+        <div class="menu-entry" onclick="toggleAgentPanel()">Alternar Painel de IA <span class="shortcut">Ctrl+J</span></div>
+        <div class="menu-entry" onclick="toggleBottomDock()">Alternar Terminal / Dock <span class="shortcut">Ctrl+`</span></div>
+        <div class="menu-entry separator"></div>
+        <div class="menu-entry" onclick="switchDockTab('preview')">Live Preview da Aplicação</div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-ir')">Ir</button>
+      <div id="menu-ir" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="openCommandPalette()">Ir para Arquivo... <span class="shortcut">Ctrl+P</span></div>
+        <div class="menu-entry" onclick="openCommandPalette()">Executar Comando... <span class="shortcut">Ctrl+Shift+P</span></div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-executar')">Executar</button>
+      <div id="menu-executar" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="executeQuickCommand('npm test')">Executar Testes <span class="shortcut">F5</span></div>
+        <div class="menu-entry" onclick="executeQuickCommand('npm run build')">Compilar / Build</div>
+        <div class="menu-entry" onclick="switchDockTab('preview')">Iniciar Live Preview</div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-terminal')">Terminal</button>
+      <div id="menu-terminal" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="switchDockTab('terminal'); document.getElementById('terminalInput').focus()">Novo Terminal <span class="shortcut">Ctrl+Shift+`</span></div>
+        <div class="menu-entry" onclick="executeQuickCommand('clear')">Limpar Terminal</div>
+        <div class="menu-entry" onclick="executeQuickCommand('help')">Ajuda de Comandos</div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-git')">Git</button>
+      <div id="menu-git" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="switchDockTab('git')">Abrir Painel Git / GitHub</div>
+        <div class="menu-entry" onclick="doGitHubPull()">Pull Remoto (GitHub)</div>
+        <div class="menu-entry" onclick="doGitHubPush()">Push Remoto (GitHub)</div>
+        <div class="menu-entry" onclick="suggestGitCommit()">Sugerir Mensagem de Commit</div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <button class="menu-item-btn" onclick="toggleMenu('menu-ajuda')">Ajuda</button>
+      <div id="menu-ajuda" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="alert('TermChat v2.0 - IDE Web com IA\nOpen Source MIT\nSuporte nativo a Gemini, OpenCode, Git e Terminal.')">Sobre o TermChat</div>
+        <div class="menu-entry" onclick="window.open('https://github.com/nicolaswjwkwk/termchat', '_blank')">Repositório GitHub</div>
+        <div class="menu-entry" onclick="executeQuickCommand('help')">Documentação de Comandos</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 3. IDE MAIN WORKSPACE -->
+  <main id="ide-workspace">
+    <div class="ide-canvas">
+
+      <!-- 3A. LEFT ACTIVITY BAR (VERTICAL ICONS) -->
+      <aside class="activity-bar">
+        <button class="act-btn active" id="actBtnExplorer" onclick="selectActivity('explorer')" title="Explorador de Arquivos (Ctrl+Shift+E)">
+          📁<span class="act-lbl">Explorer</span>
+        </button>
+        <button class="act-btn" id="actBtnSearch" onclick="selectActivity('search')" title="Busca Global (Ctrl+Shift+F)">
+          🔍<span class="act-lbl">Buscar</span>
+        </button>
+        <button class="act-btn" id="actBtnGit" onclick="selectActivity('git')" title="Controle de Versão Git">
+          🌿<span class="act-lbl">Git</span>
+        </button>
+        <button class="act-btn" id="actBtnPlugins" onclick="selectActivity('plugins')" title="Mercado de Plugins">
+          🔌<span class="act-lbl">Plugins</span>
+        </button>
+        <button class="act-btn" id="actBtnAgents" onclick="selectActivity('agents')" title="Agentes Especializados">
+          🤖<span class="act-lbl">Agentes</span>
+        </button>
+        <button class="act-btn" id="actBtnMcp" onclick="selectActivity('mcp')" title="Model Context Protocol">
+          ⚡<span class="act-lbl">MCP</span>
+        </button>
+        <button class="act-btn" id="actBtnDeploy" onclick="selectActivity('deploy')" title="Deploy e Publicação">
+          🚀<span class="act-lbl">Deploy</span>
+        </button>
+        <button class="act-btn" id="actBtnDb" onclick="selectActivity('database')" title="Banco de Dados">
+          🗄️<span class="act-lbl">Banco</span>
+        </button>
+
+        <div class="activity-bar-bottom">
+          <button class="act-btn" onclick="selectActivity('config')" title="Configurações (Ctrl+,)">
+            ⚙️<span class="act-lbl">Config</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- 3B. SIDEBAR: FILE TREE & VIEWS -->
+      <aside class="ide-sidebar-panel" id="ideSidebar">
+        <div class="sidebar-title-bar">
+          <span id="sidebarSectionTitle">EXPLORADOR</span>
+          <div class="sidebar-actions">
+            <button onclick="createNewFilePrompt()" title="Novo Arquivo">+</button>
+            <button onclick="createNewFolderPrompt()" title="Nova Pasta">📁</button>
+            <button onclick="renderFileTree()" title="Atualizar Árvore">↻</button>
+            <button onclick="toggleSidebar()" title="Recolher Barra Lateral">◀</button>
+          </div>
+        </div>
+
+        <!-- View 1: Explorer -->
+        <div id="sidebarExplorerView" class="sidebar-subview">
+          <div class="project-root-header" onclick="toggleProjectRoot()">
+            <span id="rootChevron">▼</span>
+            <span style="color:var(--accent-cyan)">📁</span>
+            <span id="projectRootName">MEU-PROJETO</span>
+          </div>
+
+          <div class="file-tree-container" id="fileTree"></div>
+
+          <!-- Sidebar Accordions -->
+          <div class="sidebar-accordion">
+            <div class="accordion-header" onclick="toggleAccordion('outlineBody')">
+              <span id="outlineChevron" style="margin-right:6px">›</span> OUTLINE
+            </div>
+            <div id="outlineBody" class="hidden" style="padding:8px 14px;font-size:11px;color:var(--text-dim)">
+              <div id="outlineSymbolsList">Estrutura de símbolos do arquivo atual</div>
+            </div>
+
+            <div class="accordion-header" onclick="toggleAccordion('timelineBody')">
+              <span id="timelineChevron" style="margin-right:6px">›</span> LINHA DO TEMPO
+            </div>
+            <div id="timelineBody" class="hidden" style="padding:8px 14px;font-size:11px;color:var(--text-dim)">
+              <div id="timelineSnapshotsList">Snapshots locais e histórico de commits</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 2: Search -->
+        <div id="sidebarSearchView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <input class="ide-input-small" id="globalSearchQuery" placeholder="Localizar em todos os arquivos..." oninput="onGlobalSearchInput(this.value)">
+            <input class="ide-input-small" id="globalReplaceQuery" placeholder="Substituir por...">
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm" onclick="runGlobalReplace()" style="flex:1">Substituir Tudo</button>
+              <button class="btn btn-sm" onclick="onGlobalSearchInput($('globalSearchQuery').value)">Atualizar</button>
+            </div>
+          </div>
+          <div id="globalSearchResults" style="margin-top:10px;font-size:11.5px;max-height:calc(100vh - 220px);overflow-y:auto">
+            <div style="color:var(--text-dim)">Digite um termo para pesquisar no workspace.</div>
+          </div>
+        </div>
+
+        <!-- View 3: Git Quick -->
+        <div id="sidebarGitView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:6px">Controle de Código</div>
+          <div id="sidebarGitStatus" style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Branch: <b id="sidebarGitBranch">main</b></div>
+          <input class="ide-input-small" id="sidebarCommitMsg" placeholder="Mensagem de commit...">
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <button class="btn btn-primary btn-sm" onclick="doSidebarCommit()" style="flex:1">Commit</button>
+            <button class="btn btn-sm" onclick="suggestGitCommit()">⚡ IA</button>
+          </div>
+          <div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase">Alterações:</div>
+          <div id="sidebarGitFiles" style="margin-top:6px;font-size:11px;font-family:var(--font-mono)"></div>
+        </div>
+
+        <!-- View 4: Plugins Quick -->
+        <div id="sidebarPluginsView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:6px">Plugins Instalados</div>
+          <input class="ide-input-small" id="sidebarPluginSearch" placeholder="Filtrar plugins..." oninput="renderSidebarPlugins(this.value)">
+          <div id="sidebarPluginsList" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+
+        <!-- View 5: Agents Quick -->
+        <div id="sidebarAgentsView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:6px">Agentes Especializados</div>
+          <div id="sidebarAgentsList" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+
+        <!-- View 6: MCP -->
+        <div id="sidebarMcpView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:4px">Model Context Protocol</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Protocolo aberto para estender ferramentas do modelo.</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:11px">
+            <div class="mcp-server-box">
+              <div style="display:flex;justify-content:space-between"><b>mcp-filesystem</b><span style="color:var(--accent-teal)">● Ativo</span></div>
+              <div style="color:var(--text-dim)">read_file, write_file, list_dir</div>
+            </div>
+            <div class="mcp-server-box">
+              <div style="display:flex;justify-content:space-between"><b>mcp-git</b><span style="color:var(--accent-teal)">● Ativo</span></div>
+              <div style="color:var(--text-dim)">commit, diff, branch, push, pull</div>
+            </div>
+            <div class="mcp-server-box">
+              <div style="display:flex;justify-content:space-between"><b>mcp-web-search</b><span style="color:var(--accent-teal)">● Ativo</span></div>
+              <div style="color:var(--text-dim)">search, wiki, weather, news</div>
+            </div>
+            <div class="mcp-server-box">
+              <div style="display:flex;justify-content:space-between"><b>mcp-gemini-tools</b><span style="color:var(--accent-cyan)">● Conectado</span></div>
+              <div style="color:var(--text-dim)">code_execution, function_calling</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 7: Deploy -->
+        <div id="sidebarDeployView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:4px">Deploy & Exportação</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <button class="btn" style="text-align:left;padding:8px" onclick="triggerDeployTarget('preview')">
+              <b>🌐 Preview Web Local</b>
+              <div style="font-size:10px;color:var(--text-dim)">Executa no iframe sandbox integrado</div>
+            </button>
+            <button class="btn" style="text-align:left;padding:8px" onclick="triggerDeployTarget('zip')">
+              <b>📦 Baixar Pacote ZIP / JSON</b>
+              <div style="font-size:10px;color:var(--text-dim)">Exporta todos os arquivos do projeto</div>
+            </button>
+            <button class="btn" style="text-align:left;padding:8px" onclick="triggerDeployTarget('vercel')">
+              <b>▲ Vercel Simulation</b>
+              <div style="font-size:10px;color:var(--text-dim)">Gerar configuração vercel.json</div>
+            </button>
+            <button class="btn" style="text-align:left;padding:8px" onclick="triggerDeployTarget('github')">
+              <b>🐙 GitHub Pages / Repo</b>
+              <div style="font-size:10px;color:var(--text-dim)">Commit e Push remoto para branch gh-pages</div>
+            </button>
+          </div>
+          <div id="deployStatusFeedback" style="margin-top:8px;font-size:11px"></div>
+        </div>
+
+        <!-- View 8: Database -->
+        <div id="sidebarDatabaseView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:4px">Banco Virtual (Key-Value)</div>
+          <div style="display:flex;gap:4px;margin-bottom:8px">
+            <input class="ide-input-small" id="dbKeyInput" placeholder="Chave..." style="flex:1">
+            <input class="ide-input-small" id="dbValInput" placeholder="Valor..." style="flex:1">
+            <button class="btn btn-sm" onclick="addDbKeyValue()">+</button>
+          </div>
+          <div id="dbKeyValuesList" style="font-size:11px;display:flex;flex-direction:column;gap:4px"></div>
+        </div>
+
+        <!-- View 9: Config -->
+        <div id="sidebarConfigView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:8px">Configurações Rápidas</div>
+          <button class="btn" style="width:100%;margin-bottom:6px" onclick="toggleModelsDrawer()">🤖 Provedores & Modelos IA</button>
+          <button class="btn" style="width:100%;margin-bottom:6px" onclick="toggleTheme()">☀️ Alternar Tema (Dark/Cyber)</button>
+          <button class="btn" style="width:100%;margin-bottom:6px" onclick="exportCfg()">💾 Fazer Backup Completo</button>
+          <button class="btn" style="width:100%;margin-bottom:6px" onclick="document.getElementById('impFile').click()">📂 Restaurar Backup JSON</button>
+          <button class="btn" style="width:100%;color:var(--accent-pink);border-color:rgba(244,63,94,0.3)" onclick="wipe()">⚠️ Resetar Workspace</button>
+        </div>
+      </aside>
+
+      <!-- 3C. CENTER WORKSPACE: TABS, EDITOR & BOTTOM DOCK -->
+      <section class="ide-center-workspace">
+
+        <!-- Editor Tabs Strip -->
+        <div class="editor-tabs-strip" id="editorTabs"></div>
+
+        <!-- Breadcrumbs Line -->
+        <div class="editor-breadcrumbs">
+          <span style="color:var(--accent-cyan)">src</span>
+          <span class="sep">&gt;</span>
+          <span id="bcFolder">components</span>
+          <span class="sep">&gt;</span>
+          <span id="bcFile" class="curr">Chat.jsx</span>
+        </div>
+
+        <!-- Hidden Search / Replace Bar -->
+        <div id="editorSearchBox" class="editor-search-box hidden">
+          <input id="editorFindInput" placeholder="Buscar texto no arquivo...">
+          <button class="btn" onclick="TermEditorInst.findNext()">Próximo</button>
+          <input id="editorReplaceInput" placeholder="Substituir por...">
+          <button class="btn" onclick="TermEditorInst.replaceNext()">Substituir</button>
+          <button class="btn" onclick="TermEditorInst.toggleSearch()">Fechar</button>
+        </div>
+
+        <!-- Editor Stage (Line numbers + Textarea + Minimap) -->
+        <div class="editor-stage">
+          <div class="line-numbers-col" id="lineNumbers"></div>
+          <div class="editor-textarea-wrap">
+            <pre id="codeHighlight"></pre>
+            <textarea id="codeTextarea" spellcheck="false" autocomplete="off" oninput="TermEditorInst.onCodeInput()" onscroll="TermEditorInst.syncScroll()" onkeydown="TermEditorInst.handleTab(event)"></textarea>
+          </div>
+          <div class="editor-minimap" id="editorMinimap">
+            <div class="minimap-bar" style="width:75%"></div>
+            <div class="minimap-bar" style="width:90%"></div>
+            <div class="minimap-bar" style="width:40%"></div>
+            <div class="minimap-bar" style="width:65%"></div>
+            <div class="minimap-bar" style="width:85%"></div>
+            <div class="minimap-bar" style="width:50%"></div>
+            <div class="minimap-bar" style="width:70%"></div>
+            <div class="minimap-bar" style="width:95%"></div>
+            <div class="minimap-bar" style="width:30%"></div>
+            <div class="minimap-bar" style="width:80%"></div>
+          </div>
+        </div>
+
+        <!-- Editor Status Strip -->
+        <div class="editor-info-strip">
+          <div>
+            <span id="editorFilePath">src/components/Chat.jsx</span>
+            <span style="margin:0 6px">·</span>
+            <span id="editorFileExt">JAVASCRIPT JSX</span>
+          </div>
+          <div id="editorStatusMsg"></div>
+          <div>
+            <span>Ln 12, Col 28</span>
+            <span style="margin:0 6px">|</span>
+            <span>Spaces: 2</span>
+            <span style="margin:0 6px">|</span>
+            <span>UTF-8</span>
+          </div>
+        </div>
+
+        <!-- 3D. BOTTOM DOCKABLE PANEL (TERMINAL / GIT / PREVIEW / PROBLEMAS / CONSOLE / PLUGINS) -->
+        <div class="ide-bottom-dock" id="ideBottomDock">
+          <div class="dock-header-strip">
+            <div class="dock-tabs">
+              <button class="dock-tab active" id="dockTabTerminal" onclick="switchDockTab('terminal')">TERMINAL</button>
+              <button class="dock-tab" id="dockTabProblems" onclick="switchDockTab('problems')">PROBLEMAS <span class="dock-badge-num" id="problemsBadgeCount">0</span></button>
+              <button class="dock-tab" id="dockTabGit" onclick="switchDockTab('git')">GIT</button>
+              <button class="dock-tab" id="dockTabPreview" onclick="switchDockTab('preview')">PREVIEW</button>
+              <button class="dock-tab" id="dockTabConsole" onclick="switchDockTab('console')">CONSOLE</button>
+              <button class="dock-tab" id="dockTabPlugins" onclick="switchDockTab('plugins')">PLUGINS</button>
+            </div>
+
+            <div class="dock-tools">
+              <button onclick="toggleMultiPaneDock()" id="btnDockPaneMode" class="btn-dock-tool" title="Alternar Modo Multi-painel / Foco">⊞ Multi-painel</button>
+              <button onclick="toggleDockMax()" id="btnDockMax" class="btn-dock-tool" title="Maximizar / Restaurar Painel">⇳</button>
+              <button onclick="toggleBottomDock()" class="btn-dock-tool" title="Fechar Painel">×</button>
+            </div>
+          </div>
+
+          <div class="dock-body">
+            <!-- Multi-pane Split View matching reference screenshot -->
+            <div class="dock-multi-pane" id="dockMultiPane">
+
+              <!-- Pane 1: Terminal -->
+              <div class="dock-pane-col">
+                <div class="pane-title-bar">
+                  <span>TERMINAL (~/meu-projeto)</span>
+                  <div style="display:flex;gap:4px">
+                    <button class="btn btn-sm" onclick="TermSandboxInst.execute('npm test')">npm test</button>
+                    <button class="btn btn-sm" onclick="TermSandboxInst.execute('npm run build')">build</button>
+                    <button class="btn btn-sm" onclick="TermSandboxInst.execute('clear')">limpar</button>
+                  </div>
+                </div>
+                <div class="dock-terminal-box">
+                  <div class="dock-terminal-output" id="terminalOutput">
+                    <div class="term-line term-dim">~/meu-projeto (main) $ npm run dev</div>
+                    <div class="term-line term-ok">VITE v5.2.0 ready in 480 ms</div>
+                    <div class="term-line term-info">➜ Local: http://localhost:5173/</div>
+                    <div class="term-line term-dim">TermChat Sandbox Terminal inicializado. Digite "help" para ver os comandos.</div>
+                  </div>
+                  <div class="dock-terminal-input-row">
+                    <span>~/meu-projeto (main) $</span>
+                    <input class="dock-terminal-input" id="terminalInput" placeholder="comando... (ls, cat, git, npm, node, agent, help)" autocomplete="off">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pane 2: Git -->
+              <div class="dock-pane-col">
+                <div class="pane-title-bar">
+                  <span>GIT & GITHUB</span>
+                  <div style="display:flex;gap:4px">
+                    <button class="btn btn-sm" id="btnGhPull" onclick="doGitHubPull()" title="Importar do GitHub">Pull</button>
+                    <button class="btn btn-sm" id="btnGhPush" onclick="doGitHubPush()" title="Enviar para GitHub">Push</button>
+                  </div>
+                </div>
+                <div class="dock-git-box">
+                  <!-- GitHub Auth Bar -->
+                  <div id="githubLoggedOutView" style="display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.02);padding:6px;border-radius:4px;border:1px solid var(--border)">
+                    <span style="font-size:11px;color:var(--text-dim)">GitHub:</span>
+                    <button class="btn btn-primary btn-sm" onclick="TermGit.loginWithGitHub()">🐙 Conectar OAuth</button>
+                    <button class="btn btn-sm" onclick="promptPatToken()">Chave PAT</button>
+                  </div>
+
+                  <div id="githubLoggedInView" class="hidden" style="display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,0.02);padding:6px;border-radius:4px;border:1px solid var(--border)">
+                    <div style="display:flex;align-items:center;gap:6px;justify-content:space-between">
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <span id="githubStatusBadge"><span class="badge" style="background:rgba(55,230,160,0.15);color:var(--accent-teal)">● Conectado</span></span>
+                        <b id="ghUserName" style="font-size:11.5px">Usuário</b>
+                        <span id="ghUserLogin" style="font-size:10.5px;color:var(--text-dim)"></span>
+                      </div>
+                      <div style="display:flex;gap:4px">
+                        <button class="btn btn-sm" onclick="promptCreateRepo()" title="Criar novo repositório">+ Repo</button>
+                        <button class="btn btn-sm" onclick="TermGit.logout(); renderGitPanel()">Sair</button>
+                      </div>
+                    </div>
+
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <select id="githubRepoSelect" onchange="onSelectGitHubRepo(this.value)" style="flex:1;background:var(--bg-panel);border:1px solid var(--border);color:#fff;border-radius:3px;padding:3px 6px;font-size:11px"></select>
+                      <input id="githubBranchInput" placeholder="branch" value="main" style="width:70px;background:var(--bg-panel);border:1px solid var(--border);color:#fff;border-radius:3px;padding:3px 6px;font-size:11px">
+                      <a id="btnGhOpenRepo" href="#" target="_blank" class="btn btn-sm" style="display:none;padding:3px 6px" title="Abrir no GitHub">🔗</a>
+                    </div>
+                  </div>
+
+                  <div id="githubActionStatus" style="font-size:11px"></div>
+
+                  <!-- Local Git Branch & Commit -->
+                  <div class="git-status-header">
+                    <span>🌿 Branch Local:</span>
+                    <select id="gitBranchSelect" onchange="TermGit.switchBranch(this.value); renderGitPanel()" style="background:var(--bg-panel);border:1px solid var(--border);color:#fff;border-radius:3px;padding:2px 4px;font-size:11px"></select>
+                    <span style="margin-left:auto;color:var(--text-dim)">⇡2 ⇣1</span>
+                  </div>
+
+                  <div class="git-commit-dock-box">
+                    <input class="git-dock-input" id="gitCommitMsgInput" placeholder="Mensagem de commit (Ctrl + Enter)">
+                    <div style="display:flex;gap:4px">
+                      <button class="btn-dock-commit" onclick="doGitCommit()" style="flex:1">✓ Commit Local</button>
+                      <button class="btn btn-sm" onclick="suggestGitCommit()" title="Gerar mensagem com IA">⚡ Sugerir</button>
+                    </div>
+                  </div>
+
+                  <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Arquivos Modificados:</div>
+                  <div class="git-files-list" id="dockGitFilesList">
+                    <div class="git-file-row"><span>src/App.jsx</span> <span class="git-status-m">M</span></div>
+                    <div class="git-file-row"><span>src/components/Terminal.jsx</span> <span class="git-status-m">M</span></div>
+                    <div class="git-file-row"><span>src/hooks/useChat.js</span> <span class="git-status-u">U</span></div>
+                    <div class="git-file-row"><span>package.json</span> <span class="git-status-m">M</span></div>
+                    <div class="git-file-row"><span>README.md</span> <span class="git-status-m">M</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pane 3: Preview -->
+              <div class="dock-pane-col">
+                <div class="pane-title-bar">
+                  <span>PREVIEW WEB</span>
+                  <div style="display:flex;gap:4px">
+                    <button class="btn btn-sm" onclick="updatePreview()" title="Recarregar">↻</button>
+                    <button class="btn btn-sm btn-device" onclick="setPreviewDevice('mobile')" title="Modo Mobile">📱</button>
+                    <button class="btn btn-sm btn-device" onclick="setPreviewDevice('tablet')" title="Modo Tablet">📟</button>
+                    <button class="btn btn-sm btn-device active" onclick="setPreviewDevice('desktop')" title="Modo Desktop">💻</button>
+                  </div>
+                </div>
+                <div class="dock-preview-box">
+                  <div class="preview-address-bar">
+                    <span style="font-size:11px;color:var(--text-dim)">🌐</span>
+                    <input class="preview-url-input" id="previewUrlBar" readonly value="http://localhost:5173">
+                    <span id="previewErrorBadge" class="hidden" style="color:var(--accent-pink);font-size:10px"></span>
+                  </div>
+                  <div class="preview-iframe-wrap" id="previewFrameContainer">
+                    <iframe id="previewIframe" sandbox="allow-scripts allow-forms allow-modals" title="App Preview"></iframe>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Single Pane Container for Dedicated Views (Problems, Console, Plugins, etc.) -->
+            <div id="dockSinglePane" class="hidden" style="width:100%;height:100%;overflow-y:auto;padding:10px">
+              <div id="dockSinglePaneContent"></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- 3E. RIGHT PANEL: AGENTE IA (CHAT, AGENTES, TAREFAS, MEMÓRIA) -->
+      <aside class="ide-agent-panel" id="ideAgentPanel">
+        <div class="agent-panel-header">
+          <div class="agent-title">
+            <span>✨</span>
+            <span>AGENTE IA</span>
+          </div>
+
+          <div class="agent-subtabs">
+            <button class="agent-tab-btn active" id="tabAgentChat" onclick="switchAgentSubtab('chat')">Chat</button>
+            <button class="agent-tab-btn" id="tabAgentRoles" onclick="switchAgentSubtab('roles')">Agentes</button>
+            <button class="agent-tab-btn" id="tabAgentTasks" onclick="switchAgentSubtab('tasks')">Tarefas</button>
+            <button class="agent-tab-btn" id="tabAgentMemory" onclick="switchAgentSubtab('memory')">Memória</button>
+          </div>
+        </div>
+
+        <div class="agent-body-scroll">
+
+          <!-- Subview 1: Chat -->
+          <div id="subviewAgentChat" class="agent-subview">
+            <!-- Greeting Box -->
+            <div class="agent-greeting-box">
+              <div class="greeting-title">👋 Olá! Sou seu agente de desenvolvimento.</div>
+              <div class="greeting-sub">Como posso ajudar hoje com seu projeto?</div>
+            </div>
+
+            <!-- Quick Action Pills -->
+            <div class="agent-quick-pills">
+              <button class="quick-pill-btn" onclick="sendAgentPrompt('Analise este projeto e identifique oportunidades de melhoria.')">
+                <span>🔍</span> Analisar projeto
+              </button>
+              <button class="quick-pill-btn" onclick="sendAgentPrompt('Crie um novo componente React moderno com Tailwind CSS.')">
+                <span>🧩</span> Criar componente
+              </button>
+              <button class="quick-pill-btn" onclick="sendAgentPrompt('Procure erros de sintaxe ou de lógica nos arquivos atuais.')">
+                <span>🐛</span> Corrigir erros
+              </button>
+              <button class="quick-pill-btn" onclick="sendAgentPrompt('Otimize a performance e o tempo de carregamento deste código.')">
+                <span>⚡</span> Otimizar código
+              </button>
+              <button class="quick-pill-btn" onclick="sendAgentPrompt('Escreva testes automatizados para as principais funções.')">
+                <span>🧪</span> Escrever testes
+              </button>
+              <button class="quick-pill-btn" onclick="sendAgentPrompt('Gere documentação técnica detalhada para o projeto.')">
+                <span>📝</span> Documentar código
+              </button>
+            </div>
+
+            <!-- Project Context Card -->
+            <div class="agent-context-card">
+              <div class="context-header">
+                <span>📁 Contexto do Projeto</span>
+                <span id="agentContextName" style="color:var(--text-main);font-weight:700">meu-projeto</span>
+              </div>
+
+              <div class="context-stats-grid">
+                <div class="stat-item">
+                  <div class="stat-num" id="statFilesCount">4</div>
+                  <div class="stat-lbl">Arquivos</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-num" id="statPluginsCount">12</div>
+                  <div class="stat-lbl">Plugins</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-num" id="statAgentsCount">7</div>
+                  <div class="stat-lbl">Agentes</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-num" id="statBranchName">main</div>
+                  <div class="stat-lbl">Branch</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Suggestions List -->
+            <div class="agent-suggestions-box">
+              <div class="suggestions-title">Sugestões de Ação</div>
+              <div class="suggestion-row" onclick="sendAgentPrompt(this.innerText)">
+                <span>💡</span> Analise todo o projeto e gere um resumo técnico
+              </div>
+              <div class="suggestion-row" onclick="sendAgentPrompt(this.innerText)">
+                <span>⚡</span> Encontre possíveis bugs e problemas de performance
+              </div>
+              <div class="suggestion-row" onclick="sendAgentPrompt(this.innerText)">
+                <span>🧪</span> Crie testes para os componentes principais
+              </div>
+              <div class="suggestion-row" onclick="sendAgentPrompt(this.innerText)">
+                <span>🔒</span> Implemente auditoria de segurança OWASP
+              </div>
+            </div>
+
+            <!-- Chat Messages Thread -->
+            <div class="agent-messages-thread" id="chatView"></div>
+          </div>
+
+          <!-- Subview 2: Agentes (Roles) -->
+          <div id="subviewAgentRoles" class="agent-subview hidden">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+              Selecione um agente especializado para executar tarefas de desenvolvimento com instruções específicas:
+            </div>
+            <div id="agentRolesList" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+
+          <!-- Subview 3: Tarefas (Task Board) -->
+          <div id="subviewAgentTasks" class="agent-subview hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <span style="font-size:12px;font-weight:700;color:var(--text-main)">Tarefas Ativas & Backlog</span>
+              <button class="btn btn-primary btn-sm" onclick="addNewAgentTaskPrompt()">+ Nova Tarefa</button>
+            </div>
+            <div id="agentTasksList" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+
+          <!-- Subview 4: Memória (Context KV) -->
+          <div id="subviewAgentMemory" class="agent-subview hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div>
+                <span style="font-size:12px;font-weight:700;color:var(--text-main)">Memória do Projeto</span>
+                <div style="font-size:10.5px;color:var(--text-dim)">Contexto permanente compartilhado com a IA</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="addAgentMemoryPrompt()">+ Adicionar</button>
+            </div>
+            <div id="agentMemoryList" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+
+        </div>
+
+        <!-- Agent Input Container -->
+        <div class="agent-input-container">
+          <form id="in" class="agent-input-wrap" autocomplete="off" onsubmit="handleFormSubmit(event)">
+            <textarea id="txt" class="agent-textarea" placeholder="Instrua o agente de IA ou digite um comando..." rows="2" onkeydown="handleChatKeydown(event)"></textarea>
+
+            <div class="agent-input-actions-bar">
+              <div class="agent-input-meta">
+                <span id="agentInputModelLabel" onclick="toggleModelsDrawer()" style="cursor:pointer;color:var(--text-muted)">OpenCode - Gemini 2.5 Pro</span>
+                <span>·</span>
+                <span id="agentInputPluginsLabel" onclick="switchDockTab('plugins')" style="cursor:pointer;color:var(--text-dim)">Plugins: 12 ▾</span>
+              </div>
+
+              <div class="agent-action-buttons">
+                <button type="button" class="btn-agent-tool" onclick="promptMentionFile()" title="Mencionar arquivo (@)">@</button>
+                <button type="button" class="btn-agent-tool" onclick="TermVoice.toggleListen()" title="Voz (Microfone)">🎙️</button>
+                <button type="submit" id="send" class="btn-agent-send" title="Enviar mensagem">➤</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- 4. BOTTOM STATUS BAR -->
+  <footer class="ide-statusbar">
+    <div class="statusbar-left">
+      <div class="status-item" onclick="switchDockTab('git')" title="Git Branch">
+        <span>🌿</span>
+        <span id="gitCurrentBranch">main*</span>
+      </div>
+      <div class="status-item" onclick="renderFileTree()" title="Sincronizar">
+        <span>↻</span>
+      </div>
+      <div class="status-item" onclick="switchDockTab('problems')" title="Problemas">
+        <span>⊗ 12</span>
+        <span>⚠ 2</span>
+      </div>
+      <div class="status-item" title="Live Share">
+        <span>📡 Live Share</span>
+      </div>
+    </div>
+
+    <div class="statusbar-right">
+      <div class="status-item">UTF-8</div>
+      <div class="status-item">LF</div>
+      <div class="status-item">JavaScript JSX</div>
+      <div class="status-item">✓ Prettier</div>
+      <div class="status-item" onclick="toggleLayoutMode()" title="Mudar Layout">Layout: IDE ⊞</div>
+      <div class="status-item" onclick="toggleModelsDrawer()" title="Modelos de IA">🤖</div>
+    </div>
+  </footer>
+
+  <!-- 4B. MOBILE QUICK PANELS BAR (<900px screens) -->
+  <nav class="mobile-ide-toolbar" id="mobileIdeToolbar">
+    <button onclick="mobileFocusPanel('sidebar')" class="mobile-tab-btn active" id="mTabSidebar">📁 Arquivos</button>
+    <button onclick="mobileFocusPanel('editor')" class="mobile-tab-btn" id="mTabEditor">💻 Editor</button>
+    <button onclick="mobileFocusPanel('dock')" class="mobile-tab-btn" id="mTabDock">⌨️ Terminal</button>
+    <button onclick="mobileFocusPanel('preview')" class="mobile-tab-btn" id="mTabPreview">🌐 Preview</button>
+    <button onclick="mobileFocusPanel('agent')" class="mobile-tab-btn" id="mTabAgent">🤖 Agente IA</button>
+  </nav>
+
 </div>
 
-<div id="configView" class="hidden">
-  <div class="set">
-    <h3>IA — provedor</h3>
-    <label>Provedor (auto = cadeia grátis sem chave)</label>
-    <select id="cfgProvider">
-      <option value="auto">auto (grátis, sem chave)</option>
-      <option value="pollinations">Pollinations (free, sem chave)</option>
-      <option value="zen">OpenCode Zen (chave opencode.ai)</option>
-      <option value="groq">Groq (free tier, chave)</option>
-      <option value="openrouter">OpenRouter (chave)</option>
-      <option value="ollama">Ollama (local, porta 11434)</option>
+<!-- ═════════════════════════════════════════════════════════════════
+     5. RIGHT SLIDE-OUT DRAWER: MODEL PROVIDERS
+     ═════════════════════════════════════════════════════════════════ -->
+<aside class="models-drawer" id="modelsDrawer">
+  <div class="drawer-header">
+    <span>MODELOS & PROVEDORES</span>
+    <button class="btn" style="padding:2px 7px" onclick="toggleModelsDrawer()">×</button>
+  </div>
+
+  <div class="drawer-scroll-body">
+    <div style="font-size:11.5px;color:var(--text-dim)">Provedor Atual:</div>
+    <select id="cfgProvider" onchange="onProviderSelectChanged(this.value)" style="background:var(--bg-input);border:1px solid var(--border);color:#fff;padding:6px;border-radius:5px;font-family:inherit;width:100%">
+      <option value="auto">Auto (Cascata com Fallback)</option>
+      <option value="gemini">Google Gemini (Oficial @google/genai)</option>
+      <option value="zen" selected>OpenCode Zen (Free & Comunitário)</option>
+      <option value="pollinations">Pollinations.ai (100% Free)</option>
+      <option value="groq">Groq (Ultra-rápido Llama 3.3)</option>
+      <option value="openrouter">OpenRouter (Multi-modelos)</option>
+      <option value="ollama">Ollama (Localhost :11434)</option>
     </select>
-    <label>Chave de API (opcional — fica só no seu navegador, nunca sai do dispositivo)</label>
-    <input id="cfgKey" type="password" placeholder="não é obrigatório em modo auto/free" autocomplete="off">
-    <label>Modelo (vazio = padrão do provedor)</label>
-    <input id="cfgModel" placeholder="ex.: llama-3.3-70b-versatile">
-    <div class="row" style="margin-top:10px"><button class="btn" onclick="saveCfg()">salvar</button><button class="btn" onclick="testAI()">testar conexão</button></div>
-    <div id="cfgMsg" style="font-size:11px;color:var(--dim);margin-top:6px"></div>
+
+    <div style="margin-top:6px">
+      <label style="font-size:11px;color:var(--text-dim)">Chave de API (opcional para auto/zen/free):</label>
+      <input id="cfgKey" type="password" placeholder="Chave da API" style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:#fff;padding:6px;border-radius:4px;margin-top:4px">
+    </div>
+
+    <div style="margin-top:6px">
+      <label style="font-size:11px;color:var(--text-dim)">Modelo Específico:</label>
+      <input id="cfgModel" placeholder="ex: gemini-3.8-flash, llama-3.3-70b" style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:#fff;padding:6px;border-radius:4px;margin-top:4px">
+    </div>
+
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button class="btn btn-primary" style="flex:1" onclick="saveCfg()">Salvar</button>
+      <button class="btn" style="flex:1" onclick="testAI()">Testar</button>
+    </div>
+    <div id="cfgMsg" style="font-size:11px;color:var(--text-dim)"></div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-top:10px">
+      Provedores Disponíveis:
+    </div>
+
+    <div class="provider-list-section">
+      <div class="provider-row active" onclick="setQuickProvider('zen')">
+        <span class="provider-icon-badge">⚡</span>
+        <div><b>OpenCode</b><div style="font-size:10px;color:var(--text-dim)">Free Community Models</div></div>
+      </div>
+      <div class="provider-row" onclick="setQuickProvider('gemini')">
+        <span class="provider-icon-badge">🤖</span>
+        <div><b>Google Gemini</b><div style="font-size:10px;color:var(--text-dim)">gemini-3.8-flash / 3.1-pro</div></div>
+      </div>
+      <div class="provider-row" onclick="setQuickProvider('pollinations')">
+        <span class="provider-icon-badge">🌸</span>
+        <div><b>Pollinations</b><div style="font-size:10px;color:var(--text-dim)">100% Free & Sem Chave</div></div>
+      </div>
+      <div class="provider-row" onclick="setQuickProvider('groq')">
+        <span class="provider-icon-badge">⚡</span>
+        <div><b>Groq</b><div style="font-size:10px;color:var(--text-dim)">Llama 3.3 70B Instantâneo</div></div>
+      </div>
+      <div class="provider-row" onclick="setQuickProvider('openrouter')">
+        <span class="provider-icon-badge">🌐</span>
+        <div><b>OpenRouter</b><div style="font-size:10px;color:var(--text-dim)">Claude, GPT-4o, DeepSeek</div></div>
+      </div>
+      <div class="provider-row" onclick="setQuickProvider('ollama')">
+        <span class="provider-icon-badge">🦙</span>
+        <div><b>Ollama</b><div style="font-size:10px;color:var(--text-dim)">Local (:11434)</div></div>
+      </div>
+    </div>
   </div>
-  <div class="set">
-    <h3>Permissões do dispositivo</h3>
-    <div id="permList"></div>
-    <p style="font-size:11px;color:var(--dim);margin-top:8px">O site só pede permissão quando você instala o plugin que precisa dela.</p>
+</aside>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     6. COMMAND PALETTE MODAL (Ctrl + P)
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="commandPaletteModal" onclick="if(event.target===this) closeCommandPalette()">
+  <div class="command-palette">
+    <div class="palette-input-wrap">
+      <span>🔍</span>
+      <input class="palette-input" id="paletteInput" placeholder="Digite o nome do arquivo ou comando..." oninput="filterPalette(this.value)">
+      <span class="kbd-badge">ESC</span>
+    </div>
+    <div class="palette-list" id="paletteList"></div>
   </div>
-  <div class="set">
-    <h3>Dados</h3>
-    <div class="row">
-      <button class="btn" onclick="exportCfg()">exportar config (JSON)</button>
-      <button class="btn" onclick="document.getElementById('impFile').click()">importar config</button>
-      <button class="btn red" onclick="wipe()">apagar tudo</button>
-      <input type="file" id="impFile" accept="application/json" class="hidden" onchange="importCfg(this)">
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     7. SHORTCUTS MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="shortcutsModal" onclick="if(event.target===this) closeShortcutsModal()">
+  <div class="command-palette" style="max-width:520px;padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:12px">
+      <b style="font-size:13px">Atalhos de Teclado do TermChat IDE</b>
+      <button class="btn btn-sm" onclick="closeShortcutsModal()">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+      <div style="display:flex;justify-content:space-between"><span>Paleta de Comandos / Arquivos</span> <kbd class="kbd-badge">Ctrl + P</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Salvar Arquivo Atual</span> <kbd class="kbd-badge">Ctrl + S</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Localizar no Arquivo</span> <kbd class="kbd-badge">Ctrl + F</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Alternar Barra Lateral</span> <kbd class="kbd-badge">Ctrl + B</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Alternar Painel de IA</span> <kbd class="kbd-badge">Ctrl + J</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Alternar Terminal / Dock</span> <kbd class="kbd-badge">Ctrl + `</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Formatar Código</span> <kbd class="kbd-badge">Alt + Shift + F</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Criar Snapshot de Segurança</span> <kbd class="kbd-badge">Ctrl + Shift + S</kbd></div>
     </div>
   </div>
 </div>
 
-<form id="in" autocomplete="off">
-  <input id="txt" placeholder="mensagem ou /comando… (/help)" maxlength="2000">
-  <button id="send">enviar</button>
-</form>
-<footer>TermChat v1.0 · MIT · plugins via /explorar</footer>
+<!-- ═════════════════════════════════════════════════════════════════
+     8. DIFF INSPECTOR MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div id="diffModal" class="hidden"></div>
 
+<!-- Hidden inputs for file import / system compatibility -->
+<input type="file" id="impFile" accept="application/json" class="hidden" onchange="importCfg(this)">
+<div id="status" class="hidden"><span class="dot"></span>boot ok</div>
+<div id="permList" class="hidden"></div>
+<div id="gitCommitList" class="hidden"></div>
+
+<!-- Application Scripts -->
 <script src="js/auth.js"></script>
+<script src="js/vfs.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/terminal.js"></script>
+<script src="js/git.js"></script>
+<script src="js/agents.js"></script>
+<script src="js/voice.js"></script>
+<script src="js/logs.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

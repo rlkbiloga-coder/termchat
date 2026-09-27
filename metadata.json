@@ -1,6 +1,6 @@
 {
   "name": "TermChat",
-  "description": "TermChat — chatbot leve estilo terminal com plugins gratuitos. 100% open source.",
+  "description": "TermChat — IDE web avançada com IA, editor de código, explorador de arquivos, terminal e plugins.",
   "permissions": [],
   "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
