@@ -296,6 +296,127 @@ app.get('/api/plugins', (req, res) => {
   }
 });
 
+// ── Instalador de Plugins via GitHub (docs/SPEC-INSTALADOR.md) ─────────
+const PLUGIN_MANIFEST_ID_RE = /^[a-z0-9-_]{3,64}$/;
+const PLUGIN_MANIFEST_SEMVER_RE = /^\d+\.\d+\.\d+$/;
+const PLUGIN_MANIFEST_VALID_CATS = ['google', 'git', 'ai', 'devtools', 'util', 'media', 'productivity'];
+const PLUGIN_MANIFEST_PERMS_ALLOWLIST = ['geolocation', 'notifications', 'clipboard', 'camera', 'mic', 'storage'];
+const pluginSearchCache = new Map(); // query -> { at, data } — cache de 15min
+
+function validatePluginManifest(m) {
+  const errors = [];
+  if (!m || typeof m !== 'object') return ['Manifesto vazio ou inválido.'];
+  if (!m.id || !PLUGIN_MANIFEST_ID_RE.test(m.id)) errors.push('id inválido (use minúsculas, números, - ou _, 3-64 chars).');
+  if (!m.name || String(m.name).length < 3 || String(m.name).length > 50) errors.push('name deve ter entre 3 e 50 caracteres.');
+  if (!m.version || !PLUGIN_MANIFEST_SEMVER_RE.test(m.version)) errors.push('version deve seguir SemVer (x.y.z).');
+  if (!m.cat || !PLUGIN_MANIFEST_VALID_CATS.includes(m.cat)) errors.push(`cat deve ser uma de: ${PLUGIN_MANIFEST_VALID_CATS.join(', ')}.`);
+  if (!m.desc || String(m.desc).length < 10 || String(m.desc).length > 300) errors.push('desc deve ter entre 10 e 300 caracteres.');
+  const perms = Array.isArray(m.perms) ? m.perms : [];
+  const badPerms = perms.filter(p => !PLUGIN_MANIFEST_PERMS_ALLOWLIST.includes(p));
+  if (badPerms.length) errors.push(`permissões não autorizadas: ${badPerms.join(', ')}.`);
+  // Política de código remoto: proíbe eval/new Function/tags <script src=externo> em qualquer campo textual
+  const flat = JSON.stringify(m);
+  if (/\beval\s*\(|new\s+Function\s*\(/.test(flat)) errors.push('manifesto contém eval()/new Function() — proibido pela política de código remoto.');
+  if (/<script[^>]+src\s*=\s*["']https?:\/\//i.test(flat)) errors.push('manifesto referencia <script src="http(s)://..."> externo — proibido.');
+  return errors;
+}
+
+app.get('/api/plugins/search', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const cat = String(req.query.cat || '').trim();
+    const source = String(req.query.source || 'all').trim(); // all | local | github
+
+    const pluginsPath = path.join(__dirname, 'plugins.json');
+    const localCatalog = JSON.parse(fs.readFileSync(pluginsPath, 'utf-8'));
+    let localResults = localCatalog.plugins || [];
+    if (q) {
+      const qLower = q.toLowerCase();
+      localResults = localResults.filter(p =>
+        p.id.toLowerCase().includes(qLower) ||
+        p.name.toLowerCase().includes(qLower) ||
+        (p.desc || '').toLowerCase().includes(qLower)
+      );
+    }
+    if (cat) localResults = localResults.filter(p => p.cat === cat);
+    localResults = localResults.map(p => ({ ...p, source: 'registry', installed: true }));
+
+    let githubResults = [];
+    if (source === 'all' || source === 'github') {
+      const cacheKey = `${q}::${cat}`;
+      const cached = pluginSearchCache.get(cacheKey);
+      if (cached && (Date.now() - cached.at) < 15 * 60 * 1000) {
+        githubResults = cached.data;
+      } else {
+        try {
+          const searchQuery = `topic:termchat-plugin ${q}`.trim();
+          const ghHeaders = { Accept: 'application/vnd.github+json' };
+          if (process.env.GITHUB_TOKEN) ghHeaders.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+          const ghRes = await fetchWithRetry(
+            `https://api.github.com/search/repositories?q=${encodeURIComponent(searchQuery)}&per_page=10`,
+            { headers: ghHeaders }, 2, 500, 8000
+          );
+          if (ghRes.ok) {
+            const ghData = await ghRes.json();
+            githubResults = (ghData.items || []).map(repo => ({
+              id: repo.name,
+              name: repo.full_name,
+              desc: repo.description || 'Sem descrição.',
+              repository: repo.html_url,
+              manifest_url: `https://raw.githubusercontent.com/${repo.full_name}/${repo.default_branch}/termchat-plugin.json`,
+              stars: repo.stargazers_count,
+              source: 'github',
+              installed: false
+            }));
+            pluginSearchCache.set(cacheKey, { at: Date.now(), data: githubResults });
+          }
+        } catch (e) {
+          // Falha na busca remota não deve quebrar a busca local
+        }
+      }
+    }
+
+    const combined = source === 'local' ? localResults : source === 'github' ? githubResults : [...localResults, ...githubResults];
+    res.json({ success: true, total: combined.length, query: q, source, plugins: combined });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/plugins/install', async (req, res) => {
+  try {
+    const { manifest_url, repo } = req.body || {};
+    let url = manifest_url;
+    if (!url && repo) {
+      url = `https://raw.githubusercontent.com/${repo}/main/termchat-plugin.json`;
+    }
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'Informe manifest_url ou repo (owner/nome).' });
+    }
+    // Zero-Trust: só aceita manifesto vindo do domínio oficial de conteúdo bruto do GitHub
+    if (!/^https:\/\/raw\.githubusercontent\.com\//.test(url)) {
+      return res.status(400).json({ success: false, error: 'Apenas manifestos hospedados em raw.githubusercontent.com são aceitos.' });
+    }
+
+    const manifestRes = await fetchWithRetry(url, {}, 2, 500, 8000).catch(() => null);
+    if (!manifestRes || !manifestRes.ok) {
+      return res.status(404).json({ success: false, error: 'Manifesto não encontrado nesse repositório (termchat-plugin.json).' });
+    }
+    const manifest = await manifestRes.json().catch(() => null);
+    const errors = validatePluginManifest(manifest);
+    if (errors.length) {
+      return res.status(422).json({ success: false, error: 'Manifesto reprovado na validação.', details: errors });
+    }
+
+    res.json({
+      success: true,
+      plugin: { ...manifest, source: 'github', installed: true, manifest_url: url, installedAt: new Date().toISOString() }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Helper: Fetch with Exponential Backoff, Jitter and Per-Attempt Timeout for 429 / 503 / 502 / 504 errors
 async function fetchWithRetry(url, options = {}, maxRetries = 3, initialDelayMs = 1000, timeoutMs = 45000) {
   let attempt = 0;
@@ -1472,26 +1593,10 @@ app.get('/api/auth/google/url', (req, res) => {
 // 2. Google User Info & Verification
 app.post('/api/auth/google/verify', async (req, res) => {
   try {
-    const { token, profile } = req.body || {};
-
-    if (profile && profile.email) {
-      return res.json({
-        ok: true,
-        user: {
-          name: profile.name || 'Usuário Google',
-          email: profile.email,
-          picture: profile.picture || 'https://lh3.googleusercontent.com/a/default-user',
-          verified: true,
-          provider: 'google',
-          connectedAt: new Date().toISOString(),
-          services: {
-            gemini: !!process.env.GEMINI_API_KEY,
-            drive: true,
-            cloud: true
-          }
-        }
-      });
-    }
+    // SEGURANÇA: apenas access_token real do Google é aceito.
+    // O antigo branch que confiava em "profile" enviado pelo cliente
+    // sem verificação foi removido — permitia login falso com qualquer email.
+    const { token } = req.body || {};
 
     if (token) {
       const gRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -1518,21 +1623,9 @@ app.post('/api/auth/google/verify', async (req, res) => {
       }
     }
 
-    res.json({
-      ok: true,
-      user: {
-        name: 'Nicolas Google Dev',
-        email: 'papaecodelta9@gmail.com',
-        picture: 'https://lh3.googleusercontent.com/a/default-user',
-        verified: true,
-        provider: 'google',
-        connectedAt: new Date().toISOString(),
-        services: {
-          gemini: !!process.env.GEMINI_API_KEY,
-          drive: true,
-          cloud: true
-        }
-      }
+    return res.status(401).json({
+      ok: false,
+      error: 'Token de acesso do Google ausente ou inválido. Faça login novamente pela janela oficial do Google.'
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

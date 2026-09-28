@@ -55,39 +55,113 @@
       return this.googleUser;
     }
 
-    async loginWithGoogle(manualEmail = null) {
+    getGoogleClientId() {
+      return localStorage.getItem('tc_google_client_id') || '';
+    }
+
+    setGoogleClientId(id) {
+      localStorage.setItem('tc_google_client_id', (id || '').trim());
+    }
+
+    // Carrega a lib oficial do Google Identity Services (GSI) uma única vez
+    loadGsiScript() {
+      if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+        return Promise.resolve();
+      }
+      if (window.__gsiLoading) return window.__gsiLoading;
+      window.__gsiLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.async = true;
+        s.defer = true;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Falha ao carregar o script do Google (verifique sua internet).'));
+        document.head.appendChild(s);
+      });
+      return window.__gsiLoading;
+    }
+
+    // Login real com Google (OAuth 2.0 / Google Identity Services).
+    // Abre o popup oficial do Google, obtém um access_token real e
+    // verifica a identidade contra a API do próprio Google — sem
+    // nenhum dado inventado ou fallback local.
+    async loginWithGoogle() {
+      const clientId = this.getGoogleClientId();
+      if (!clientId) {
+        if (window.TermLogs) {
+          window.TermLogs.add('GoogleAuth', 'Login cancelado: nenhum Google Client ID configurado.', 'warn');
+        }
+        return {
+          ok: false,
+          error: 'CLIENT_ID_MISSING',
+          message: 'Configure um Google OAuth Client ID em Config → Google antes de entrar. É gratuito: console.cloud.google.com/apis/credentials'
+        };
+      }
+
       try {
-        // Try backend verification first
-        const payload = manualEmail ? { profile: { email: manualEmail, name: manualEmail.split('@')[0] } } : {};
-        const res = await fetch('/api/auth/google/verify', {
+        await this.loadGsiScript();
+      } catch (e) {
+        return { ok: false, error: e.message };
+      }
+
+      return new Promise((resolve) => {
+        try {
+          const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: 'openid email profile',
+            callback: async (tokenResponse) => {
+              if (!tokenResponse || !tokenResponse.access_token) {
+                resolve({ ok: false, error: 'Login cancelado ou negado pelo Google.' });
+                return;
+              }
+              const result = await this.verifyGoogleToken(tokenResponse.access_token);
+              resolve(result);
+            },
+            error_callback: (err) => {
+              resolve({ ok: false, error: (err && err.message) || 'Falha no popup de login do Google.' });
+            }
+          });
+          client.requestAccessToken();
+        } catch (e) {
+          resolve({ ok: false, error: e.message });
+        }
+      });
+    }
+
+    // Verifica o access_token real contra a API do Google. Tenta primeiro
+    // pelo backend (se existir); sem backend, verifica direto do navegador
+    // (o endpoint da Google tem CORS liberado — funciona no GitHub Pages).
+    async verifyGoogleToken(accessToken) {
+      try {
+        let userData = null;
+
+        const backendRes = await fetch('/api/auth/google/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ token: accessToken })
         }).catch(() => null);
 
-        let userData = null;
-        if (res && res.ok) {
-          const data = await res.json().catch(() => null);
-          if (data && data.ok && data.user) {
-            userData = data.user;
-          }
+        if (backendRes && backendRes.ok) {
+          const data = await backendRes.json().catch(() => null);
+          if (data && data.ok && data.user) userData = data.user;
         }
 
-        // Fallback to local authenticated user if offline or server-less
         if (!userData) {
-          const email = manualEmail || 'papaecodelta9@gmail.com';
+          const directRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          if (!directRes.ok) {
+            return { ok: false, error: 'Token do Google rejeitado pela API (login inválido ou expirado).' };
+          }
+          const u = await directRes.json();
           userData = {
-            name: email.split('@')[0].toUpperCase(),
-            email: email,
-            picture: 'https://lh3.googleusercontent.com/a/default-user',
-            verified: true,
+            name: u.name,
+            email: u.email,
+            picture: u.picture,
+            verified: u.email_verified,
             provider: 'google',
             connectedAt: new Date().toISOString(),
-            services: {
-              gemini: true,
-              drive: true,
-              cloud: true
-            }
+            services: { gemini: true, drive: true, cloud: true }
           };
         }
 
@@ -236,20 +310,48 @@
         </div>
       `;
     } else {
+      const savedClientId = authInst.getGoogleClientId();
       body.innerHTML = `
         <div style="text-align:center;padding:16px">
           <div style="margin-bottom:10px;display:flex;justify-content:center">${googleIcon}</div>
           <b style="font-size:14px;color:var(--text-primary)">Conexão Google Workspace & Cloud</b>
           <p style="font-size:12px;color:var(--text-muted);margin:8px 0 16px;line-height:1.5">
-            Autentique sua conta Google para sincronização de projetos no Google Drive, Google Docs, Forms, Chat e inferência Gemini.
+            Autentique sua conta Google real (OAuth 2.0) para sincronização no Drive, Docs, Forms, Chat e Gemini.
           </p>
-          <button class="btn btn-primary" style="padding:8px 20px;font-size:12.5px" onclick="TermAuth.loginWithGoogle().then(() => renderGoogleAccountModal())">
+
+          <div style="text-align:left;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:12px">
+            <label style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px">Google OAuth Client ID</label>
+            <input id="googleClientIdInput" type="text" placeholder="algo.apps.googleusercontent.com" value="${savedClientId.replace(/"/g, '&quot;')}"
+              style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-input,var(--bg-main));color:var(--text-primary);font-size:12px;box-sizing:border-box">
+            <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px;line-height:1.4">
+              Gratuito, gerado em console.cloud.google.com/apis/credentials (tipo "Aplicativo Web"). Não é uma senha — pode ficar salvo aqui com segurança.
+            </div>
+          </div>
+
+          <div id="googleLoginError" style="display:none;font-size:11.5px;color:var(--accent-red,#ff5c5c);margin-bottom:10px;text-align:left"></div>
+
+          <button class="btn btn-primary" style="padding:8px 20px;font-size:12.5px" onclick="window.handleGoogleLoginClick()">
             Entrar com Google
           </button>
         </div>
       `;
     }
   }
+
+  window.handleGoogleLoginClick = async function () {
+    const input = document.getElementById('googleClientIdInput');
+    const errBox = document.getElementById('googleLoginError');
+    if (input) authInst.setGoogleClientId(input.value);
+    if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
+
+    const result = await authInst.loginWithGoogle();
+    if (result.ok) {
+      renderGoogleAccountModal();
+    } else if (errBox) {
+      errBox.textContent = result.message || result.error || 'Falha ao entrar com o Google.';
+      errBox.style.display = 'block';
+    }
+  };
   window.renderGoogleAccountModal = renderGoogleAccountModal;
 
   window.saveToGoogleDrive = async function () {

@@ -100,6 +100,7 @@ class TermSandbox {
   <span class="term-acc">npm test</span>               Executar bateria de testes do projeto
   <span class="term-acc">npm run build</span>          Validar e compilar projeto
   <span class="term-acc">node &lt;arquivo&gt;</span>         Executar script JavaScript no sandbox
+  <span class="term-acc">python &lt;arquivo.py&gt;</span>   Executar script Python no sandbox (Pyodide, isolado)
   <span class="term-acc">agent &lt;role&gt; &lt;prompt&gt;</span>  Chamar agente (coder, debugger, tester, etc.)
   <span class="term-acc">builder &lt;prompt&gt;</span>       Gerador automático de aplicações
   <span class="term-acc">deploy [vercel|zip]</span>    Fazer deploy do projeto
@@ -224,6 +225,22 @@ class TermSandbox {
         const expr = args.join(' ');
         if (!expr) return this.print('Uso: eval <expressao-js>', 'err');
         this.executeSandboxedJs(expr);
+        break;
+      }
+
+      case 'python':
+      case 'py': {
+        if (args[0] === '-c') {
+          const code = args.slice(1).join(' ');
+          if (!code) return this.print('Uso: py -c "codigo"', 'err');
+          this.executeSandboxedPython(code);
+        } else if (args[0]) {
+          const file = window.TermVFS.getFile(args[0]);
+          if (!file) return this.print(`python: ${args[0]}: arquivo não encontrado`, 'err');
+          this.executeSandboxedPython(file.content);
+        } else {
+          this.print('Uso: python <arquivo.py>  |  py -c "codigo"', 'err');
+        }
         break;
       }
 
@@ -485,13 +502,63 @@ Data:  ${new Date(c.date).toLocaleString()}
     }
   }
 
+  // Terminal Python isolado no navegador via Pyodide (WebAssembly).
+  // Não toca o servidor: cada execução roda numa sandbox local do
+  // próprio dispositivo do usuário, sem acesso a rede/arquivos do host.
+  async loadPyodideRuntime() {
+    if (window.__pyodideInstance) return window.__pyodideInstance;
+    if (window.__pyodideLoading) return window.__pyodideLoading;
+
+    window.__pyodideLoading = (async () => {
+      this.print('Carregando runtime Python (Pyodide/WebAssembly)... primeira vez pode levar alguns segundos.', 'dim');
+      if (!window.loadPyodide) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
+          s.onload = resolve;
+          s.onerror = () => reject(new Error('Falha ao carregar Pyodide do CDN (verifique sua internet).'));
+          document.head.appendChild(s);
+        });
+      }
+      const instance = await window.loadPyodide({
+        indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'
+      });
+      window.__pyodideInstance = instance;
+      return instance;
+    })();
+
+    try {
+      return await window.__pyodideLoading;
+    } finally {
+      window.__pyodideLoading = null;
+    }
+  }
+
+  async executeSandboxedPython(code) {
+    try {
+      const pyodide = await this.loadPyodideRuntime();
+      this.print('Rodando Python no sandbox (isolado, sem acesso ao servidor)...', 'dim');
+
+      // Captura stdout/stderr do Python para o terminal
+      pyodide.setStdout({ batched: (text) => this.print(text, 'info') });
+      pyodide.setStderr({ batched: (text) => this.print('[ERROR] ' + text, 'err') });
+
+      const result = await pyodide.runPythonAsync(code);
+      if (result !== undefined && result !== null) {
+        this.print('=> ' + String(result), 'ok');
+      }
+    } catch (err) {
+      this.print(`Erro de execução Python: ${err.message}`, 'err');
+    }
+  }
+
   autoComplete(input) {
     const val = input.value;
     const parts = val.split(' ');
     const last = parts[parts.length - 1];
 
     if (parts.length === 1) {
-      const cmds = ['help', 'ls', 'cat', 'edit', 'touch', 'rm', 'mkdir', 'git', 'snapshot', 'rollback', 'npm', 'node', 'agent', 'builder', 'deploy', 'clear'];
+      const cmds = ['help', 'ls', 'cat', 'edit', 'touch', 'rm', 'mkdir', 'git', 'snapshot', 'rollback', 'npm', 'node', 'python', 'py', 'agent', 'builder', 'deploy', 'clear'];
       const matches = cmds.filter(c => c.startsWith(last));
       if (matches.length === 1) input.value = matches[0] + ' ';
     } else {
