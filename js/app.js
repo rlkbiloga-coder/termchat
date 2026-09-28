@@ -30,33 +30,6 @@ const cfg = Object.assign({
 if (!cfg.providerKeys) cfg.providerKeys = {};
 window.cfg = cfg;
 
-function getActiveApiKey(providerId) {
-  const p = providerId || cfg.provider || 'auto';
-  if (cfg.providerKeys && cfg.providerKeys[p]) {
-    return cfg.providerKeys[p];
-  }
-  return cfg.key || '';
-}
-window.getActiveApiKey = getActiveApiKey;
-
-// Permissions manager
-const PERMS = {
-  notifications: { label: 'Notificações', ask: async () => { try { return window.Notification ? await Notification.requestPermission() : 'denied'; } catch(e) { return 'denied'; } } },
-  geolocation: { label: 'Localização', ask: () => new Promise(resolve => { if (!navigator.geolocation) return resolve('denied'); navigator.geolocation.getCurrentPosition(() => resolve('granted'), () => resolve('denied'), { timeout: 5000 }); }) },
-  clipboard: { label: 'Área de transferência', ask: async () => { try { await navigator.clipboard.writeText('ok'); return 'granted'; } catch (e) { return 'denied'; } } }
-};
-
-function permState(p) {
-  try {
-    if (p === 'notifications') return (window.Notification ? Notification.permission : 'unsupported');
-    if (p === 'geolocation') return (navigator.geolocation ? 'prompt' : 'unsupported');
-    if (p === 'clipboard') return (navigator.clipboard ? 'prompt' : 'unsupported');
-  } catch (e) {
-    return 'unsupported';
-  }
-  return 'unsupported';
-}
-
 async function queryPerm(p) {
   try {
     const s = await navigator.permissions.query({ name: p === 'geolocation' ? 'geolocation' : 'clipboard-read' });
@@ -1921,35 +1894,12 @@ window.addEventListener('keydown', e => {
 // ═════════════════════════════════════════════════════════════════
 // MODELS DRAWER & THEME & MOBILE
 // ═════════════════════════════════════════════════════════════════
-function onProviderSelectChanged(val) {
-  cfg.provider = val;
-  store.set('cfg', cfg);
-  updateModelBadge();
-}
-
 function setQuickProvider(val) {
   cfg.provider = val;
   if ($('cfgProvider')) $('cfgProvider').value = val;
   store.set('cfg', cfg);
   updateModelBadge();
   alert(`Provedor alterado para: [${val.toUpperCase()}]`);
-}
-
-function updateModelBadge() {
-  const label = $('topModelName');
-  const inputLabel = $('agentInputModelLabel');
-  const names = {
-    auto: 'Auto • Cascata Fallback',
-    gemini: 'Google Gemini • gemini-3.8-flash',
-    zen: 'OpenCode • Gemini 2.5 Pro',
-    pollinations: 'Pollinations • 100% Free',
-    groq: 'Groq • Llama 3.3 70B',
-    openrouter: 'OpenRouter • Multi-model',
-    ollama: 'Ollama • Localhost'
-  };
-  const str = names[cfg.provider] || cfg.provider;
-  if (label) label.textContent = str;
-  if (inputLabel) inputLabel.textContent = str;
 }
 
 function toggleTheme() {
