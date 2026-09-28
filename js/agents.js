@@ -317,6 +317,7 @@ btn.addEventListener('click', () => {
 
   async callAI(messages) {
     const cfg = window.cfg || {};
+    const apiKey = typeof window.getActiveApiKey === 'function' ? window.getActiveApiKey(cfg.provider) : (cfg.key || '');
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -325,7 +326,8 @@ btn.addEventListener('click', () => {
           provider: cfg.provider || 'auto',
           model: cfg.model || '',
           messages,
-          apiKey: cfg.key || ''
+          apiKey,
+          customBaseUrl: cfg.customBaseUrl || ''
         })
       });
 

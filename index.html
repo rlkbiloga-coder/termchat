@@ -1306,7 +1306,7 @@
         <span data-icon="sparkles" data-icon-size="20" style="color:var(--accent-cyan)"></span>
         <div>
           <b style="font-size:14.5px;color:#fff">Configuração Avançada de Provedores & Modelos IA</b>
-          <div style="font-size:11px;color:var(--text-muted)">Gemini, Meta Llama, DeepSeek, Qwen, Claude, GPT-4o e Auto-Routing com Fallback</div>
+          <div style="font-size:11px;color:var(--text-muted)">Gemini, Meta Llama, DeepSeek, Qwen, NVIDIA NIM, Claude, GPT-4o e Personalizado</div>
         </div>
       </div>
       <button class="btn btn-sm" onclick="closeModelsDrawer()">✕</button>
@@ -1314,43 +1314,89 @@
 
     <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;flex-direction:column;gap:4px">
-        <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Provedor de IA:</label>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Provedor de IA:</label>
+          <span id="providerKeyStatusBadge" style="font-size:10px;color:var(--accent-teal)">🔑 Chave persistida no browser</span>
+        </div>
         <select id="cfgProvider" class="ide-input-small" onchange="onProviderSelectChanged(this.value)" style="padding:6px;background:var(--bg-panel);color:#fff">
           <option value="auto">⚡ Auto-Routing Inteligente (Cascata com Fallback)</option>
           <option value="gemini">✨ Google Gemini (Oficial AI Studio)</option>
           <option value="meta">🦙 Meta Llama (Llama 3.3 70B / 8B)</option>
           <option value="deepseek">🧠 DeepSeek AI (DeepSeek-R1 & V3)</option>
           <option value="qwen">🌐 Alibaba Qwen (2.5 Coder 32B)</option>
+          <option value="nvidia">💚 NVIDIA NIM (Llama 3.1 Nemotron / 3.3)</option>
           <option value="anthropic">🎭 Anthropic Claude (3.5 Sonnet)</option>
           <option value="openai">🤖 OpenAI (GPT-4o / Mini)</option>
           <option value="mistral">🌪️ Mistral AI (Codestral / Large)</option>
+          <option value="huggingface">🤗 HuggingFace Inference API</option>
           <option value="pollinations">🌍 Pollinations.ai (100% Free / Sem Chave)</option>
+          <option value="custom">🛠️ Endpoint Personalizado (API Custom / Local)</option>
         </select>
+      </div>
+
+      <div id="customUrlBox" class="hidden" style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">URL Base da API (OpenAI-compatible):</label>
+        <input class="ide-input-small" id="cfgCustomUrl" placeholder="https://api.openai.com/v1 ou http://localhost:11434/v1" style="padding:6px">
       </div>
 
       <div style="display:flex;flex-direction:column;gap:4px">
         <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Modelo Específico:</label>
         <select id="cfgModel" class="ide-input-small" style="padding:6px;background:var(--bg-panel);color:#fff">
           <option value="gemini-3.8-flash">gemini-3.8-flash (Padrão Recomendado)</option>
-          <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
-          <option value="meta-llama/llama-3.3-70b-instruct">meta-llama/llama-3.3-70b-instruct</option>
-          <option value="deepseek/deepseek-r1">deepseek/deepseek-r1</option>
-          <option value="qwen/qwen-2.5-coder-32b-instruct">qwen/qwen-2.5-coder-32b-instruct</option>
-          <option value="claude-3-5-sonnet-latest">claude-3-5-sonnet-latest</option>
-          <option value="gpt-4o">gpt-4o</option>
         </select>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:4px">
-        <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Chave de API (Opcional se configurado no servidor):</label>
-        <input class="ide-input-small" id="cfgKey" type="password" placeholder="Insira sua API Key (ex: AIzaSy... ou sk-...)" style="padding:6px">
-        <span style="font-size:10px;color:var(--text-dim)">As chaves são armazenadas com segurança localmente e enviadas criptografadas apenas para as APIs oficiais.</span>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label style="font-size:11.5px;font-weight:700;color:var(--text-main)" id="cfgKeyLabel">Chave de API do Provedor:</label>
+          <span style="font-size:10px;color:var(--text-dim)">Salva individualmente por provedor em localStorage</span>
+        </div>
+        <input class="ide-input-small" id="cfgKey" type="password" placeholder="Insira a API Key específica deste provedor..." style="padding:6px" oninput="onApiKeyInputChanged(this.value)">
+        <span style="font-size:10px;color:var(--text-dim)">O TermChat troca dinamicamente a chave e o header de autorização ao alternar de provedor.</span>
+      </div>
+
+      <!-- Health Check Status Grid for All AI Providers -->
+      <div style="background:var(--bg-darker);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:11.5px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--accent-teal)"></span>
+            Health Check dos Provedores (API Key & Endpoint)
+          </div>
+          <button class="btn btn-sm" onclick="runAllHealthChecks()" style="font-size:10.5px;padding:3px 8px">⚡ Diagnosticar Todos</button>
+        </div>
+
+        <div id="providerHealthGrid" style="display:grid;grid-template-columns:repeat(2, 1fr);gap:6px">
+          <div class="health-card" id="hc-gemini" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">✨ Gemini</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-meta" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🦙 Meta Llama</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-deepseek" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🧠 DeepSeek AI</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-qwen" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🌐 Alibaba Qwen</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-nvidia" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">💚 NVIDIA NIM</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-pollinations" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🌍 Pollinations Free</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+        </div>
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
         <div id="cfgMsg" style="font-size:11.5px;color:var(--accent-teal)"></div>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-sm" onclick="testAI()">Testar Conexão</button>
+          <button class="btn btn-sm" onclick="checkActiveProviderHealth()">Testar Atual</button>
           <button class="btn btn-sm btn-primary" onclick="saveModelsDrawer()">Salvar Alterações</button>
         </div>
       </div>

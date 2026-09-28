@@ -20,12 +20,24 @@ const cfg = Object.assign({
   provider: 'auto',
   key: '',
   model: 'gemini-3.8-flash',
+  providerKeys: {},
+  customBaseUrl: '',
   autoSave: true,
   deviceMode: 'desktop',
   theme: 'obsidian'
 }, store.get('cfg', {}));
 
+if (!cfg.providerKeys) cfg.providerKeys = {};
 window.cfg = cfg;
+
+function getActiveApiKey(providerId) {
+  const p = providerId || cfg.provider || 'auto';
+  if (cfg.providerKeys && cfg.providerKeys[p]) {
+    return cfg.providerKeys[p];
+  }
+  return cfg.key || '';
+}
+window.getActiveApiKey = getActiveApiKey;
 
 // Permissions manager
 const PERMS = {
@@ -199,8 +211,9 @@ async function askAI(text) {
   const msgs = [{ role: 'system', content: SYS }, ...history.slice(-8), { role: 'user', content: text }];
 
   const startTime = Date.now();
+  const currentKey = getActiveApiKey(cfg.provider);
   if (window.TermLogs) {
-    window.TermLogs.add('IA', `Iniciando consulta via provedor [${cfg.provider}]...`, 'info');
+    window.TermLogs.add('IA', `Iniciando consulta via provedor [${cfg.provider}] (Key: ${currentKey ? 'Ativa ✓' : 'Servidor/Free'})...`, 'info');
   }
 
   try {
@@ -211,7 +224,8 @@ async function askAI(text) {
         provider: cfg.provider || 'auto',
         model: cfg.model || '',
         messages: msgs,
-        apiKey: cfg.key || ''
+        apiKey: currentKey,
+        customBaseUrl: cfg.customBaseUrl || ''
       })
     });
 
@@ -2365,14 +2379,20 @@ const PROVIDER_MODELS_MAP = {
   ],
   meta: [
     { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct' },
-    { id: 'meta-llama/llama-3.1-8b-instruct', name: 'Llama 3.1 8B Instruct' }
+    { id: 'meta-llama/llama-3.1-8b-instruct', name: 'Llama 3.1 8B Instruct' },
+    { id: 'meta-llama/llama-3.2-3b-instruct', name: 'Llama 3.2 3B Instruct' }
   ],
   deepseek: [
     { id: 'deepseek/deepseek-r1', name: 'DeepSeek-R1 (Raciocínio Avançado)' },
     { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat (V3)' }
   ],
   qwen: [
-    { id: 'qwen/qwen-2.5-coder-32b-instruct', name: 'Qwen 2.5 Coder 32B (Especialista)' }
+    { id: 'qwen/qwen-2.5-coder-32b-instruct', name: 'Qwen 2.5 Coder 32B (Especialista)' },
+    { id: 'qwen/qwen-2.5-72b-instruct', name: 'Qwen 2.5 72B Instruct' }
+  ],
+  nvidia: [
+    { id: 'meta/llama-3.3-70b-instruct', name: 'NVIDIA Llama 3.3 70B Instruct' },
+    { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'NVIDIA Nemotron 70B Instruct' }
   ],
   anthropic: [
     { id: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet' },
@@ -2386,12 +2406,19 @@ const PROVIDER_MODELS_MAP = {
     { id: 'codestral-latest', name: 'Codestral (Mistral Code)' },
     { id: 'mistral-large-latest', name: 'Mistral Large' }
   ],
+  huggingface: [
+    { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'HuggingFace Qwen 2.5 Coder' },
+    { id: 'meta-llama/Llama-3.3-70B-Instruct', name: 'HuggingFace Llama 3.3 70B' }
+  ],
   pollinations: [
     { id: 'openai', name: 'Pollinations OpenAI Free' },
     { id: 'mistral', name: 'Pollinations Mistral Free' }
   ],
+  custom: [
+    { id: 'custom-model', name: 'Modelo Personalizado / Local' }
+  ],
   auto: [
-    { id: 'gemini-3.8-flash', name: 'Auto-Routing (Gemini -> Pollinations)' }
+    { id: 'gemini-3.8-flash', name: 'Auto-Routing (Gemini -> Pollinations -> NVIDIA)' }
   ]
 };
 
@@ -2400,7 +2427,7 @@ function toggleModelsDrawer() {
   if (modal) {
     modal.classList.remove('hidden');
     if ($('cfgProvider')) $('cfgProvider').value = cfg.provider || 'auto';
-    if ($('cfgKey')) $('cfgKey').value = cfg.key || '';
+    if ($('cfgCustomUrl')) $('cfgCustomUrl').value = cfg.customBaseUrl || '';
     onProviderSelectChanged(cfg.provider || 'auto', cfg.model);
   }
 }
@@ -2412,20 +2439,97 @@ function closeModelsDrawer() {
 
 function onProviderSelectChanged(provider, selectedModel) {
   const modelSelect = $('cfgModel');
-  if (!modelSelect) return;
-  const list = PROVIDER_MODELS_MAP[provider] || PROVIDER_MODELS_MAP.auto;
-  modelSelect.innerHTML = list.map(m => `<option value="${m.id}" ${selectedModel === m.id ? 'selected' : ''}>${m.name}</option>`).join('');
-  if (!selectedModel && list.length > 0) {
-    modelSelect.value = list[0].id;
+  const keyInput = $('cfgKey');
+  const keyLabel = $('cfgKeyLabel');
+  const statusBadge = $('providerKeyStatusBadge');
+  const customBox = $('customUrlBox');
+
+  if (customBox) {
+    customBox.classList.toggle('hidden', provider !== 'custom');
+  }
+
+  // Populate model options
+  if (modelSelect) {
+    const list = PROVIDER_MODELS_MAP[provider] || PROVIDER_MODELS_MAP.auto;
+    modelSelect.innerHTML = list.map(m => `<option value="${m.id}" ${selectedModel === m.id ? 'selected' : ''}>${m.name}</option>`).join('');
+    if (!selectedModel && list.length > 0) {
+      modelSelect.value = list[0].id;
+    }
+  }
+
+  // Retrieve per-provider API key
+  const storedKey = (cfg.providerKeys && cfg.providerKeys[provider]) || (provider === cfg.provider ? cfg.key : '');
+  if (keyInput) {
+    keyInput.value = storedKey || '';
+  }
+
+  const providerNames = {
+    gemini: 'Google Gemini',
+    meta: 'Meta Llama',
+    deepseek: 'DeepSeek AI',
+    qwen: 'Alibaba Qwen',
+    nvidia: 'NVIDIA NIM',
+    anthropic: 'Anthropic Claude',
+    openai: 'OpenAI',
+    mistral: 'Mistral AI',
+    huggingface: 'HuggingFace',
+    pollinations: 'Pollinations (Free)',
+    custom: 'Endpoint Custom',
+    auto: 'Auto-Routing'
+  };
+
+  const name = providerNames[provider] || provider;
+  if (keyLabel) {
+    keyLabel.textContent = `Chave de API (${name}):`;
+  }
+
+  if (statusBadge) {
+    if (storedKey) {
+      statusBadge.textContent = `🔑 Chave persistida para ${name}`;
+      statusBadge.style.color = 'var(--accent-teal)';
+    } else if (provider === 'pollinations' || provider === 'auto') {
+      statusBadge.textContent = '⚡ Livre / Servidor Auto';
+      statusBadge.style.color = 'var(--accent-cyan)';
+    } else {
+      statusBadge.textContent = '⚠️ Nenhuma chave salva (Usa chave do servidor se houver)';
+      statusBadge.style.color = 'var(--text-dim)';
+    }
+  }
+}
+
+function onApiKeyInputChanged(val) {
+  const provider = $('cfgProvider') ? $('cfgProvider').value : cfg.provider;
+  if (!cfg.providerKeys) cfg.providerKeys = {};
+  cfg.providerKeys[provider] = val.trim();
+
+  const statusBadge = $('providerKeyStatusBadge');
+  if (statusBadge) {
+    if (val.trim()) {
+      statusBadge.textContent = `🔑 Chave configurada (${provider})`;
+      statusBadge.style.color = 'var(--accent-teal)';
+    } else {
+      statusBadge.textContent = '⚠️ Sem chave configurada';
+      statusBadge.style.color = 'var(--text-dim)';
+    }
   }
 }
 
 function saveModelsDrawer() {
-  if ($('cfgProvider')) cfg.provider = $('cfgProvider').value;
-  if ($('cfgKey')) cfg.key = $('cfgKey').value.trim();
-  if ($('cfgModel')) cfg.model = $('cfgModel').value.trim();
+  const provider = $('cfgProvider') ? $('cfgProvider').value : 'auto';
+  const key = $('cfgKey') ? $('cfgKey').value.trim() : '';
+  const model = $('cfgModel') ? $('cfgModel').value.trim() : '';
+  const customUrl = $('cfgCustomUrl') ? $('cfgCustomUrl').value.trim() : '';
+
+  if (!cfg.providerKeys) cfg.providerKeys = {};
+  cfg.providerKeys[provider] = key;
+
+  cfg.provider = provider;
+  cfg.key = key;
+  cfg.model = model;
+  cfg.customBaseUrl = customUrl;
+
   store.set('cfg', cfg);
-  if ($('cfgMsg')) $('cfgMsg').textContent = 'Configurações de IA salvas ✓';
+  if ($('cfgMsg')) $('cfgMsg').textContent = `✓ Configurações da API [${provider.toUpperCase()}] salvas no localStorage!`;
   updateModelBadge();
 
   if (window.TermFirebase) {
@@ -2441,6 +2545,8 @@ function updateModelBadge() {
   }
 }
 
+window.onApiKeyInputChanged = onApiKeyInputChanged;
+
 function saveCfg() {
   if ($('cfgProvider')) cfg.provider = $('cfgProvider').value;
   if ($('cfgKey')) cfg.key = $('cfgKey').value.trim();
@@ -2454,14 +2560,82 @@ function saveCfg() {
   }
 }
 
-async function testAI() {
-  if ($('cfgMsg')) $('cfgMsg').textContent = 'Testando conexão...';
-  try {
-    const r = await askAI('Responda apenas: ok');
-    if ($('cfgMsg')) $('cfgMsg').textContent = 'Conectado ✓ via ' + r.provider;
-  } catch (e) {
-    if ($('cfgMsg')) $('cfgMsg').textContent = 'Falha: ' + e.message.slice(0, 80);
+async function checkProviderHealth(provider) {
+  const card = $(`hc-${provider}`);
+  const badge = card ? card.querySelector('.hc-badge') : null;
+  if (badge) {
+    badge.textContent = '⏳ Testando...';
+    badge.style.background = 'rgba(255,215,0,0.15)';
+    badge.style.color = '#ffd700';
   }
+
+  const apiKey = getActiveApiKey(provider);
+  const customBaseUrl = cfg.customBaseUrl || '';
+
+  try {
+    const res = await fetch('/api/health-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider,
+        apiKey,
+        customBaseUrl
+      })
+    });
+
+    const data = await res.json();
+    if (data.ok) {
+      if (badge) {
+        badge.textContent = `🟢 Válida (${data.latencyMs}ms)`;
+        badge.style.background = 'rgba(55,230,160,0.15)';
+        badge.style.color = '#37e6a0';
+      }
+      return { ok: true, provider, latencyMs: data.latencyMs };
+    } else {
+      if (badge) {
+        badge.textContent = `🔴 Incorreta / Erro`;
+        badge.style.background = 'rgba(255,107,107,0.15)';
+        badge.style.color = '#ff6b6b';
+      }
+      return { ok: false, provider, error: data.error };
+    }
+  } catch (err) {
+    if (badge) {
+      badge.textContent = `🔴 Erro de Rede`;
+      badge.style.background = 'rgba(255,107,107,0.15)';
+      badge.style.color = '#ff6b6b';
+    }
+    return { ok: false, provider, error: err.message };
+  }
+}
+
+async function checkActiveProviderHealth() {
+  const provider = $('cfgProvider') ? $('cfgProvider').value : (cfg.provider || 'auto');
+  if ($('cfgMsg')) $('cfgMsg').textContent = `Testando saúde da API [${provider.toUpperCase()}]...`;
+  
+  const res = await checkProviderHealth(provider === 'auto' ? 'gemini' : provider);
+  if (res && res.ok) {
+    if ($('cfgMsg')) $('cfgMsg').textContent = `🟢 API Key e Endpoint [${provider.toUpperCase()}] ativos (${res.latencyMs}ms) ✓`;
+  } else if (res) {
+    if ($('cfgMsg')) $('cfgMsg').textContent = `🔴 Falha na API [${provider.toUpperCase()}]: ${res.error || 'Erro desconhecido'}`;
+  }
+}
+
+async function runAllHealthChecks() {
+  if ($('cfgMsg')) $('cfgMsg').textContent = 'Iniciando diagnóstico completo de todos os provedores...';
+  const providersToTest = ['gemini', 'meta', 'deepseek', 'qwen', 'nvidia', 'pollinations'];
+  
+  await Promise.all(providersToTest.map(p => checkProviderHealth(p)));
+  
+  if ($('cfgMsg')) $('cfgMsg').textContent = 'Diagnóstico concluído! Verifique os indicadores abaixo. ✓';
+}
+
+window.checkProviderHealth = checkProviderHealth;
+window.checkActiveProviderHealth = checkActiveProviderHealth;
+window.runAllHealthChecks = runAllHealthChecks;
+
+async function testAI() {
+  return checkActiveProviderHealth();
 }
 
 function renderPerms() {

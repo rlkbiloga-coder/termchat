@@ -439,6 +439,55 @@ app.post('/api/chat', async (req, res) => {
   });
 });
 
+// Provider-specific Health Check endpoint
+app.post('/api/health-check', async (req, res) => {
+  const { provider = 'auto', model, apiKey, customBaseUrl } = req.body || {};
+  const pingMessages = [{ role: 'user', content: 'Responda apenas: pong' }];
+  const startTime = Date.now();
+
+  try {
+    let resultText = '';
+    if (provider === 'gemini') {
+      resultText = await callGemini({ model, messages: pingMessages, apiKey });
+    } else if (provider === 'custom') {
+      const target = customBaseUrl || 'https://api.openai.com/v1';
+      resultText = await callUpstream({
+        target,
+        provider: 'custom',
+        model: model || 'gpt-4o-mini',
+        messages: pingMessages,
+        apiKey,
+        customBaseUrl
+      });
+    } else {
+      const target = ALLOWED_TARGETS[provider] || ALLOWED_TARGETS.pollinations;
+      resultText = await callUpstream({
+        target,
+        provider: ALLOWED_TARGETS[provider] ? provider : 'pollinations',
+        model,
+        messages: pingMessages,
+        apiKey
+      });
+    }
+
+    const latencyMs = Date.now() - startTime;
+    return res.json({
+      ok: true,
+      provider,
+      latencyMs,
+      message: `API Key e Endpoint [${provider.toUpperCase()}] ativos (${latencyMs}ms)`
+    });
+  } catch (err) {
+    const latencyMs = Date.now() - startTime;
+    return res.status(200).json({
+      ok: false,
+      provider,
+      latencyMs,
+      error: err.message || 'Erro de conexão ou chave de API inválida'
+    });
+  }
+});
+
 // Streaming proxy endpoint using Server-Sent Events (SSE)
 app.post('/api/stream', async (req, res) => {
   const { provider = 'auto', model, messages = [], apiKey } = req.body || {};
