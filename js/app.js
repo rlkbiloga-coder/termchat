@@ -36,13 +36,18 @@ window.getActiveApiKey = getActiveApiKey;
 const PERMS = {
   notifications: { label: 'Notificações', ask: async () => { try { return window.Notification ? await Notification.requestPermission() : 'denied'; } catch(e) { return 'denied'; } } },
   geolocation: { label: 'Localização', ask: () => new Promise(resolve => { if (!navigator.geolocation) return resolve('denied'); navigator.geolocation.getCurrentPosition(() => resolve('granted'), () => resolve('denied'), { timeout: 5000 }); }) },
-  clipboard: { label: 'Área de transferência', ask: async () => { try { await navigator.clipboard.writeText('ok'); return 'granted'; } catch (e) { return 'denied'; } } }
+  clipboard: { label: 'Área de transferência', ask: async () => { try { await navigator.clipboard.writeText('ok'); return 'granted'; } catch (e) { return 'denied'; } } },
+  camera: { label: 'Câmera', ask: async () => { try { const s = await navigator.mediaDevices.getUserMedia({ video: true }); s.getTracks().forEach(t => t.stop()); return 'granted'; } catch (e) { return 'denied'; } } },
+  microphone: { label: 'Microfone', ask: async () => { try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); return 'granted'; } catch (e) { return 'denied'; } } },
+  persist: { label: 'Armazenamento persistente', ask: async () => { try { return (await navigator.storage.persist()) ? 'granted' : 'denied'; } catch (e) { return 'denied'; } } }
 };
 
 function permState(p) {
   try {
     if (p === 'notifications') return (window.Notification ? Notification.permission : 'unsupported');
     if (p === 'geolocation') return (navigator.geolocation ? 'prompt' : 'unsupported');
+    if (p === 'camera' || p === 'microphone') return (navigator.mediaDevices ? 'prompt' : 'unsupported');
+    if (p === 'persist') return (navigator.storage && navigator.storage.persist ? 'prompt' : 'unsupported');
     if (p === 'clipboard') return (navigator.clipboard ? 'prompt' : 'unsupported');
   } catch (e) {
     return 'unsupported';
@@ -175,6 +180,67 @@ const PLUGINS = [
     id: 'ip', name: 'meu-ip', desc: 'Seu IP público aproximado (ipwho.is, livre).', cat: 'dados', perms: [], run: async a => {
       const d = await (await fetch('https://ipwho.is/')).json();
       return d.ip + ' · ' + esc(d.city || '?') + ', ' + esc(d.country || '?') + ' · ISP: ' + esc(d.connection && d.connection.isp || '?');
+    }
+  },
+  {
+    id: 'cep', name: 'cep', desc: 'Busca CEP brasileiro (BrasilAPI, sem chave).', cat: 'dados', perms: [], run: async a => {
+      const c = (a || '').replace(/\D/g, '');
+      if (!/^\d{8}$/.test(c)) return '❌ use: /cep <8 dígitos>';
+      const d = await (await fetch('https://brasilapi.com.br/api/cep/v2/' + c)).json();
+      if (!d || d.erro || !d.street) return '❌ CEP não encontrado.';
+      return '📮 ' + esc(d.street) + ', ' + esc(d.neighborhood || '?') + ' · ' + esc(d.city) + '/' + esc(d.state);
+    }
+  },
+  {
+    id: 'cnpj', name: 'cnpj', desc: 'Consulta dados de CNPJ (BrasilAPI, sem chave).', cat: 'dados', perms: [], run: async a => {
+      const c = (a || '').replace(/\D/g, '');
+      if (c.length !== 14) return '❌ use: /cnpj <14 dígitos>';
+      const d = await (await fetch('https://brasilapi.com.br/api/cnpj/v1/' + c)).json();
+      if (!d || (d.status && d.status >= 400)) return '❌ CNPJ não encontrado.';
+      return '🏢 ' + esc(d.razao_social || '') + '\nSituação: ' + esc(d.situacao_cadastral || '?') + ' · UF: ' + esc(d.uf || '?') + ' · Abertura: ' + esc(d.data_inicio_atividade || '?');
+    }
+  },
+  {
+    id: 'holidays', name: 'feriados', desc: 'Feriados nacionais do ano (BrasilAPI).', cat: 'dados', perms: [], run: async a => {
+      const y = (a || '').trim() || String(new Date().getFullYear());
+      const d = await (await fetch('https://brasilapi.com.br/api/feriados/v1/' + encodeURIComponent(y))).json();
+      if (!Array.isArray(d)) return '❌ Ano inválido.';
+      return '📅 Feriados ' + y + ':\n' + d.slice(0, 12).map(f => esc(f.date) + ' · ' + esc(f.name)).join('\n');
+    }
+  },
+  {
+    id: 'books', name: 'livro', desc: 'Busca livros no Google Books (sem chave).', cat: 'dados', perms: [], run: async a => {
+      const t = (a || '').trim();
+      if (!t) return '❌ use: /livro <termo>';
+      const d = await (await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=5&country=BR&q=' + encodeURIComponent(t))).json();
+      if (!d.items || !d.items.length) return '❌ Nada encontrado.';
+      return '📚 ' + d.items.map(it => esc(it.volumeInfo.title) + ' — ' + esc((it.volumeInfo.authors || ['?'])[0])).join('\n');
+    }
+  },
+  {
+    id: 'passwd', name: 'senha', desc: 'Gera senha forte aleatória e copia (local).', cat: 'ferramentas', perms: [], run: async a => {
+      const n = Math.min(64, Math.max(8, parseInt(a, 10) || 16));
+      const cs = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*';
+      const buf = new Uint32Array(n); crypto.getRandomValues(buf);
+      const pw = Array.from(buf, x => cs[x % cs.length]).join('');
+      try { await navigator.clipboard.writeText(pw); } catch (e) {}
+      return '🔐 Senha (' + n + ' chars, copiada para o clipboard):\n' + pw;
+    }
+  },
+  {
+    id: 'define', name: 'definir', desc: 'Define palavra em inglês (dictionaryapi.dev, free).', cat: 'dados', perms: [], run: async a => {
+      const w = (a || '').trim();
+      if (!w) return '❌ use: /definir <word>';
+      try {
+        const d = await (await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(w))).json();
+        return '📖 ' + esc(d[0].word) + ': ' + esc(d[0].meanings[0].definitions[0].definition);
+      } catch (e) { return '❌ Palavra não encontrada.'; }
+    }
+  },
+  {
+    id: 'advice', name: 'conselho', desc: 'Conselho aleatório do dia (adviceslip, free).', cat: 'ia', perms: [], run: async a => {
+      const d = await (await fetch('https://api.adviceslip.com/advice')).json();
+      return '💡 ' + esc(d.slip.advice);
     }
   }
 ];
