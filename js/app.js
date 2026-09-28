@@ -1921,11 +1921,6 @@ window.addEventListener('keydown', e => {
 // ═════════════════════════════════════════════════════════════════
 // MODELS DRAWER & THEME & MOBILE
 // ═════════════════════════════════════════════════════════════════
-function toggleModelsDrawer() {
-  const drawer = $('modelsDrawer');
-  if (drawer) drawer.classList.toggle('open');
-}
-
 function onProviderSelectChanged(val) {
   cfg.provider = val;
   store.set('cfg', cfg);
