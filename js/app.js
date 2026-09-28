@@ -30,6 +30,33 @@ const cfg = Object.assign({
 if (!cfg.providerKeys) cfg.providerKeys = {};
 window.cfg = cfg;
 
+function getActiveApiKey(providerId) {
+  const p = providerId || cfg.provider || 'auto';
+  if (cfg.providerKeys && cfg.providerKeys[p]) {
+    return cfg.providerKeys[p];
+  }
+  return cfg.key || '';
+}
+window.getActiveApiKey = getActiveApiKey;
+
+// Permissions manager
+const PERMS = {
+  notifications: { label: 'Notificações', ask: async () => { try { return window.Notification ? await Notification.requestPermission() : 'denied'; } catch(e) { return 'denied'; } } },
+  geolocation: { label: 'Localização', ask: () => new Promise(resolve => { if (!navigator.geolocation) return resolve('denied'); navigator.geolocation.getCurrentPosition(() => resolve('granted'), () => resolve('denied'), { timeout: 5000 }); }) },
+  clipboard: { label: 'Área de transferência', ask: async () => { try { await navigator.clipboard.writeText('ok'); return 'granted'; } catch (e) { return 'denied'; } } }
+};
+
+function permState(p) {
+  try {
+    if (p === 'notifications') return (window.Notification ? Notification.permission : 'unsupported');
+    if (p === 'geolocation') return (navigator.geolocation ? 'prompt' : 'unsupported');
+    if (p === 'clipboard') return (navigator.clipboard ? 'prompt' : 'unsupported');
+  } catch (e) {
+    return 'unsupported';
+  }
+  return 'unsupported';
+}
+
 async function queryPerm(p) {
   try {
     const s = await navigator.permissions.query({ name: p === 'geolocation' ? 'geolocation' : 'clipboard-read' });
@@ -55,6 +82,14 @@ async function ensurePerm(p) {
 
 // Plugins
 const PLUGINS = [
+  {
+    id: 'imggen', name: 'img', desc: 'Gera imagem com IA grátis via Pollinations (sem chave).', cat: 'ia', perms: [], run: async a => {
+      const p = (a || '').trim();
+      if (!p) return '❌ use: /img <descrição da imagem>';
+      const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(p) + '?width=768&height=768&nologo=true&model=flux';
+      return '🖼️ Imagem gerada (carrega em ~15s):\n' + url;
+    }
+  },
   {
     id: 'weather', name: 'clima', desc: 'Previsão do tempo da sua cidade via open-meteo (sem chave).', cat: 'dados', perms: ['geolocation'], run: async a => {
       if (!await ensurePerm('geolocation')) return '❌ preciso da permissão de localização (config → permissões).';
@@ -259,26 +294,6 @@ async function askAI(text) {
 
     return { text: data.text, provider: data.provider };
   } catch (err) {
-    // Sem backend: IA direta do navegador (Gemini com chave própria, senão Pollinations)
-    if (window.directAIChat) {
-      try {
-        if (window.TermLogs) {
-          window.TermLogs.add('IA', 'Backend indisponível, usando IA direta do navegador...', 'info');
-        }
-        const direct = await window.directAIChat(msgs);
-        if (window.TermLogs) {
-          window.TermLogs.add('IA', `Resposta via [${direct.provider}] (IA direta)`, 'success');
-        }
-        return { text: direct.text, provider: direct.provider };
-      } catch (directErr) {
-        if (window.TermLogs) {
-          window.TermLogs.add('IA', `IA direta também falhou: ${directErr.message}`, 'error');
-        }
-        const e = new Error('Sem servidor conectado e a IA direta do navegador falhou (' + directErr.message + '). Verifique sua internet ou rode o servidor (node server.js) para o modo completo.');
-        e.isOffline = true;
-        throw e;
-      }
-    }
     if (window.TermLogs) {
       window.TermLogs.add('IA', `Falha no provedor: ${err.message}`, 'error');
     }
@@ -1914,12 +1929,49 @@ window.addEventListener('keydown', e => {
 // ═════════════════════════════════════════════════════════════════
 // MODELS DRAWER & THEME & MOBILE
 // ═════════════════════════════════════════════════════════════════
+function toggleModelsDrawer() {
+  const drawer = $('modelsDrawer');
+  if (drawer) drawer.classList.toggle('open');
+}
+
+function onProviderSelectChanged(val) {
+  cfg.provider = val;
+  store.set('cfg', cfg);
+  updateModelBadge();
+}
+
 function setQuickProvider(val) {
   cfg.provider = val;
   if ($('cfgProvider')) $('cfgProvider').value = val;
   store.set('cfg', cfg);
   updateModelBadge();
   alert(`Provedor alterado para: [${val.toUpperCase()}]`);
+}
+
+function updateModelBadge() {
+  const label = $('topModelName');
+  const inputLabel = $('agentInputModelLabel');
+  const names = {
+    auto: 'Auto • Cascata Fallback',
+    gemini: 'Google Gemini • gemini-3.8-flash',
+    zen: 'OpenCode • Gemini 2.5 Pro',
+    pollinations: 'Pollinations • 100% Free',
+    groq: 'Groq • Llama 3.3 70B',
+    openrouter: 'OpenRouter • Multi-model',
+    ollama: 'Ollama • Localhost',
+    cerebras: 'Cerebras • Free Tier Veloz',
+    sambanova: 'SambaNova • Llama 405B',
+    together: 'Together • Modelos :free',
+    huggingface: 'HuggingFace • Router Grátis',
+    nvidia: 'NVIDIA NIM • Nemotron',
+    deepseek: 'DeepSeek • R1/V3',
+    mistral: 'Mistral • Codestral',
+    qwen: 'Qwen • Coder 32B',
+    custom: 'Custom • Ollama/LM Studio'
+  };
+  const str = names[cfg.provider] || cfg.provider;
+  if (label) label.textContent = str;
+  if (inputLabel) inputLabel.textContent = str;
 }
 
 function toggleTheme() {
@@ -2427,7 +2479,33 @@ const PROVIDER_MODELS_MAP = {
     { id: 'anthropic/claude-3.5-sonnet', name: '📡 OpenRouter Claude 3.5 Sonnet' },
     { id: 'deepseek/deepseek-r1', name: '📡 OpenRouter DeepSeek R1' },
     { id: 'meta-llama/llama-3.3-70b-instruct', name: '📡 OpenRouter Llama 3.3 70B' },
-    { id: 'mistralai/mistral-large-2407', name: '📡 OpenRouter Mistral Large 2407' }
+    { id: 'mistralai/mistral-large-2407', name: '📡 OpenRouter Mistral Large 2407' },
+    { id: 'meta-llama/llama-3.1-8b-instruct:free', name: '📡 OpenRouter Llama 3.1 8B (:free)' },
+    { id: 'google/gemma-2-9b-it:free', name: '📡 OpenRouter Gemma 2 9B (:free)' },
+    { id: 'qwen/qwen-2.5-72b-instruct:free', name: '📡 OpenRouter Qwen 2.5 72B (:free)' },
+    { id: 'mistralai/mistral-small-3.1-24b-instruct:free', name: '📡 OpenRouter Mistral Small 3.1 (:free)' }
+  ],
+  groq: [
+    { id: 'llama-3.3-70b-versatile', name: '⚡ Groq Llama 3.3 70B Versatile' },
+    { id: 'llama-3.1-8b-instant', name: '⚡ Groq Llama 3.1 8B Instant (Free Tier)' },
+    { id: 'qwen/qwen3-32b', name: '⚡ Groq Qwen 3 32B' },
+    { id: 'deepseek-r1-distill-llama-70b', name: '⚡ Groq DeepSeek R1 Distill 70B' }
+  ],
+  cerebras: [
+    { id: 'llama-3.3-70b', name: '🧬 Cerebras Llama 3.3 70B (Free Tier Veloz)' },
+    { id: 'llama3.1-8b', name: '🧬 Cerebras Llama 3.1 8B (Ultra Rápido)' },
+    { id: 'qwen-3-32b', name: '🧬 Cerebras Qwen 3 32B' }
+  ],
+  sambanova: [
+    { id: 'Meta-Llama-3.3-70B-Instruct', name: '🔥 SambaNova Llama 3.3 70B (Free Tier)' },
+    { id: 'Meta-Llama-3.1-405B-Instruct', name: '🔥 SambaNova Llama 3.1 405B (Ultra Scale)' },
+    { id: 'Qwen2.5-72B-Instruct', name: '🔥 SambaNova Qwen 2.5 72B' }
+  ],
+  together: [
+    { id: 'meta-llama/Llama-3.2-3B-Instruct:free', name: '🤝 Together Llama 3.2 3B (:free)' },
+    { id: 'meta-llama/Llama-3.1-8B-Instruct:free', name: '🤝 Together Llama 3.1 8B (:free)' },
+    { id: 'google/gemma-2-9b-it:free', name: '🤝 Together Gemma 2 9B (:free)' },
+    { id: 'meta-llama/Llama-Vision-Free', name: '🤝 Together Llama Vision (:free)' }
   ],
   anthropic: [
     { id: 'claude-3-5-sonnet-latest', name: '🎭 Claude 3.5 Sonnet (State-of-the-Art Coding)' },
@@ -2449,7 +2527,10 @@ const PROVIDER_MODELS_MAP = {
   huggingface: [
     { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: '🤗 HuggingFace Qwen 2.5 Coder 32B' },
     { id: 'meta-llama/Llama-3.3-70B-Instruct', name: '🤗 HuggingFace Llama 3.3 70B' },
-    { id: 'bigcode/starcoder2-15b', name: '🤗 HuggingFace StarCoder2 15B' }
+    { id: 'bigcode/starcoder2-15b', name: '🤗 HuggingFace StarCoder2 15B' },
+    { id: 'Qwen/Qwen2.5-72B-Instruct', name: '🤗 HuggingFace Qwen 2.5 72B' },
+    { id: 'meta-llama/Llama-3.1-8B-Instruct', name: '🤗 HuggingFace Llama 3.1 8B' },
+    { id: 'mistralai/Mistral-7B-Instruct-v0.3', name: '🤗 HuggingFace Mistral 7B v0.3' }
   ],
   pollinations: [
     { id: 'openai', name: '🌍 Pollinations OpenAI Free (Sem API Key)' },
@@ -2531,6 +2612,11 @@ function onProviderSelectChanged(provider, selectedModel) {
     openai: 'OpenAI',
     openrouter: 'OpenRouter',
     groq: 'Groq LPU',
+    cerebras: 'Cerebras (Free Tier)',
+    sambanova: 'SambaNova (Free Tier)',
+    together: 'Together AI (:free)',
+    ollama: 'Ollama (Local)',
+    zen: 'OpenCode Zen',
     mistral: 'Mistral AI',
     huggingface: 'HuggingFace',
     pollinations: 'Pollinations (Free)',
@@ -2555,7 +2641,46 @@ function onProviderSelectChanged(provider, selectedModel) {
       statusBadge.style.color = 'var(--text-dim)';
     }
   }
+  renderModelExplorer();
 }
+
+function renderModelExplorer() {
+  const grid = $('modelExplorerGrid');
+  if (!grid) return;
+  const provider = ($('cfgProvider') && $('cfgProvider').value) || cfg.provider || 'auto';
+  const q = (($('modelExplorerSearch') && $('modelExplorerSearch').value) || '').toLowerCase();
+  const list = PROVIDER_MODELS_MAP[provider] || PROVIDER_MODELS_MAP.auto || [];
+  const provMeta = {
+    pollinations: { tag: 'FREE · SEM CHAVE', free: true }, opencode: { tag: 'FREE', free: true }, zen: { tag: 'FREE', free: true },
+    groq: { tag: 'FREE TIER', free: true }, cerebras: { tag: 'FREE TIER', free: true }, sambanova: { tag: 'FREE TIER', free: true },
+    together: { tag: 'MODELOS :FREE', free: true }, openrouter: { tag: 'ALGUNS :FREE', free: 'mixed' },
+    huggingface: { tag: 'TOKEN GRÁTIS', free: true }, gemini: { tag: 'FREE TIER', free: true },
+    nvidia: { tag: 'CRÉDITOS GRÁTIS', free: true }, mistral: { tag: 'FREE TIER', free: true },
+    ollama: { tag: 'LOCAL', free: true }, custom: { tag: 'LOCAL', free: true }
+  };
+  const meta = provMeta[provider] || { tag: 'PAGO', free: false };
+  const activeModel = (cfg.provider === provider && cfg.model) ? cfg.model : '';
+  const cards = list
+    .filter(m => !q || (m.name + ' ' + m.id).toLowerCase().includes(q))
+    .map(m => {
+      const isActive = activeModel === m.id;
+      const isFree = meta.free === true || (meta.free === 'mixed' && String(m.id).includes(':free')) || String(m.id).includes(':free');
+      const mid = String(m.id).replace(/'/g, "\'");
+      const border = isActive ? 'var(--accent-cyan)' : 'var(--border)';
+      return '<div onclick="explorerPick(\'' + provider + '\',\'' + mid + '\')" style="cursor:pointer;background:var(--bg-panel);border:1px solid ' + border + ';border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;transition:border-color .15s" onmouseover="this.style.borderColor=\'var(--accent-cyan)\'" onmouseout="this.style.borderColor=\'' + border + '\'" title="' + m.id + '">' +
+        '<span style="font-size:10.5px;font-weight:600;color:#fff;line-height:1.3">' + m.name + '</span>' +
+        '<span style="font-size:8.5px;color:var(--text-dim);word-break:break-all">' + m.id + '</span>' +
+        '<span style="font-size:8px;font-weight:700;color:' + (isFree ? '#37e6a0' : '#ffd15c') + '">' + (isFree ? '✓ GRÁTIS' : 'PAGO/CHAVE') + '</span>' +
+        '</div>';
+    }).join('');
+  grid.innerHTML = cards || '<div style="font-size:11px;color:var(--text-dim)">Nenhum modelo para a busca. Use o modelo customizado abaixo.</div>';
+}
+function explorerPick(provider, modelId) {
+  quickSelectModel(provider, modelId);
+  renderModelExplorer();
+}
+window.renderModelExplorer = renderModelExplorer;
+window.explorerPick = explorerPick;
 
 function onApiKeyInputChanged(val) {
   const provider = $('cfgProvider') ? $('cfgProvider').value : cfg.provider;
