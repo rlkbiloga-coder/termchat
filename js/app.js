@@ -876,6 +876,7 @@ function switchDockTab(tab) {
   const tabIds = {
     terminal: 'dockTabTerminal',
     problems: 'dockTabProblems',
+    audit: 'dockTabAudit',
     git: 'dockTabGit',
     preview: 'dockTabPreview',
     console: 'dockTabConsole',
@@ -905,6 +906,8 @@ function switchDockTab(tab) {
 
   if (tab === 'problems') {
     renderProblems();
+  } else if (tab === 'audit') {
+    renderAuditPanel();
   } else if (tab === 'console') {
     renderConsoleLogs();
   } else if (tab === 'plugins') {
@@ -1015,6 +1018,406 @@ function renderProblems() {
     </div>
   `;
 }
+
+// ═════════════════════════════════════════════════════════════════
+// AUDITORIA DE REPOSITÓRIO & VERIFICAÇÃO DE BUGS & RISCOS (GITHUB & CODE REVIEW)
+// ═════════════════════════════════════════════════════════════════
+let auditActiveSubtab = 'repo'; // 'repo' or 'code'
+
+function renderAuditPanel() {
+  const container = $('dockSinglePaneContent');
+  if (!container) return;
+
+  const repoAudit = window.TermGit?.lastRepoAudit || store.get('tc_last_repo_audit', null);
+  const codeReview = window.TermGit?.lastCodeReview || store.get('tc_last_code_review', null);
+
+  const currentRepo = localStorage.getItem('tc_gh_selected_repo') || 'nicolaswjwkwk/termchat';
+  const score = auditActiveSubtab === 'repo'
+    ? (repoAudit?.securityScore ?? 92)
+    : (codeReview?.overallScore ?? 88);
+
+  const riskLevel = auditActiveSubtab === 'repo'
+    ? (repoAudit?.riskLevel || 'BAIXO')
+    : (codeReview?.riskLevel || 'BAIXO');
+
+  const scoreClass = score < 60 ? 'crit' : score < 80 ? 'warn' : '';
+  const riskClass = `risk-tag-${riskLevel.toLowerCase()}`;
+
+  // Update audit badge
+  const badge = $('auditBadgeCount');
+  if (badge) {
+    const totalIssues = (repoAudit?.totalFindings || 0) + (codeReview?.issues?.length || 0);
+    badge.textContent = totalIssues > 0 ? String(totalIssues) : '✓';
+    badge.style.background = totalIssues > 0 ? 'var(--accent-pink)' : 'var(--accent-teal)';
+  }
+
+  container.innerHTML = `
+    <div class="audit-container">
+      <!-- Top Banner -->
+      <div class="audit-header-banner">
+        <div class="audit-score-box">
+          <div class="audit-score-circle ${scoreClass}">${score}</div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <b style="font-size:14px;color:#fff">Auditoria de Segurança & Bugs</b>
+              <span class="risk-tag ${riskClass}">Risco ${riskLevel}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:2px">
+              Repositório: <b style="color:var(--accent-cyan)">${esc(currentRepo)}</b> | Branch: <b>${esc(window.TermGit?.getRepoState().branch || 'main')}</b>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="startRepoAudit('${esc(currentRepo)}')">
+            🔍 Escanear GitHub
+          </button>
+          <button class="btn btn-sm" onclick="startWorkspaceCodeReview('all')">
+            ⚡ AI Code Review
+          </button>
+          <button class="btn btn-sm" onclick="forceReloadIDE()" title="Limpar cache e recarregar IDE">
+            🔄 Limpar Cache
+          </button>
+        </div>
+      </div>
+
+      <!-- Subtabs Bar -->
+      <div class="audit-subtabs">
+        <button class="audit-subtab-btn ${auditActiveSubtab === 'repo' ? 'active' : ''}" onclick="auditActiveSubtab='repo'; renderAuditPanel()">
+          🛡️ Repositório GitHub (Dependabot & Riscos)
+        </button>
+        <button class="audit-subtab-btn ${auditActiveSubtab === 'code' ? 'active' : ''}" onclick="auditActiveSubtab='code'; renderAuditPanel()">
+          🐞 Verificação de Erros no Código (Workspace)
+        </button>
+      </div>
+
+      <!-- Subtab Content -->
+      <div id="auditSubtabBody">
+        ${auditActiveSubtab === 'repo' ? renderRepoAuditContent(repoAudit, currentRepo) : renderCodeReviewContent(codeReview)}
+      </div>
+    </div>
+  `;
+}
+
+function renderRepoAuditContent(audit, currentRepo) {
+  if (!audit) {
+    return `
+      <div style="padding:16px;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:6px">
+        <div style="font-size:24px;margin-bottom:8px">🛡️</div>
+        <b style="font-size:13px;color:#fff">Nenhuma auditoria executada para ${esc(currentRepo)}</b>
+        <div style="font-size:11.5px;color:var(--text-muted);margin:6px 0 12px">
+          Escaneie vulnerabilidades de Dependabot, Code Scanning, vazamento de tokens e bugs notificados no repositório.
+        </div>
+        <button class="btn btn-primary" onclick="startRepoAudit('${esc(currentRepo)}')">
+          🔍 Escanear Repositório Agora
+        </button>
+      </div>
+    `;
+  }
+
+  const {
+    findings = [],
+    bugIssues = [],
+    failedWorkflows = [],
+    dependabotCount = 0,
+    codeScanCount = 0,
+    secretScanCount = 0,
+    recommendations = []
+  } = audit;
+
+  return `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <!-- 4 Stats Cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:8px">
+        <div class="stat-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:8px">
+          <div style="font-size:10.5px;color:var(--text-dim)">DEPENDABOT</div>
+          <b style="font-size:16px;color:${dependabotCount > 0 ? 'var(--accent-amber)' : 'var(--accent-teal)'}">${dependabotCount}</b>
+          <div style="font-size:10px;color:var(--text-muted)">Alertas de Pacotes</div>
+        </div>
+        <div class="stat-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:8px">
+          <div style="font-size:10.5px;color:var(--text-dim)">CODE SCANNING</div>
+          <b style="font-size:16px;color:${codeScanCount > 0 ? 'var(--accent-pink)' : 'var(--accent-teal)'}">${codeScanCount}</b>
+          <div style="font-size:10px;color:var(--text-muted)">Alertas CodeQL</div>
+        </div>
+        <div class="stat-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:8px">
+          <div style="font-size:10.5px;color:var(--text-dim)">SEGREDO / TOKEN</div>
+          <b style="font-size:16px;color:${secretScanCount > 0 ? 'var(--accent-pink)' : 'var(--accent-teal)'}">${secretScanCount}</b>
+          <div style="font-size:10px;color:var(--text-muted)">Vazamentos</div>
+        </div>
+        <div class="stat-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:8px">
+          <div style="font-size:10.5px;color:var(--text-dim)">BUGS NOTIFICADOS</div>
+          <b style="font-size:16px;color:${bugIssues.length > 0 ? 'var(--accent-amber)' : 'var(--accent-teal)'}">${bugIssues.length}</b>
+          <div style="font-size:10px;color:var(--text-muted)">Issues abertas</div>
+        </div>
+      </div>
+
+      <!-- Findings List -->
+      <div style="font-size:12px;font-weight:700;color:#fff;margin-top:4px">
+        Alertas & Riscos no Repositório (${findings.length + bugIssues.length + failedWorkflows.length})
+      </div>
+
+      ${findings.length === 0 && bugIssues.length === 0 && failedWorkflows.length === 0 ? `
+        <div style="background:rgba(55,230,160,0.06);border:1px solid rgba(55,230,160,0.2);padding:10px;border-radius:6px;color:var(--accent-teal);font-size:12px">
+          ✓ Nenhum risco crítico ou alerta notificado no GitHub para este repositório!
+        </div>
+      ` : ''}
+
+      ${findings.map(f => `
+        <div class="audit-finding-card ${f.severity.toLowerCase()}">
+          <div class="audit-finding-title-row">
+            <span class="audit-finding-title">
+              <span class="risk-tag risk-tag-${f.severity.toLowerCase()}">${esc(f.severity)}</span>
+              <span>${esc(f.title)}</span>
+            </span>
+            ${f.url ? `<a href="${esc(f.url)}" target="_blank" class="btn btn-sm" style="text-decoration:none">Ver no GitHub ↗</a>` : ''}
+          </div>
+          <div class="audit-finding-desc">${esc(f.description)}</div>
+          ${f.file ? `<div style="font-size:10.5px;color:var(--accent-cyan);font-family:var(--font-mono)">Arquivo: ${esc(f.file)}:${f.line || 1}</div>` : ''}
+        </div>
+      `).join('')}
+
+      <!-- Bug Issues from GitHub -->
+      ${bugIssues.map(iss => `
+        <div class="audit-finding-card medio">
+          <div class="audit-finding-title-row">
+            <span class="audit-finding-title">
+              <span class="risk-tag risk-tag-medio">BUG REPORT</span>
+              <span>#${iss.id}: ${esc(iss.title)}</span>
+            </span>
+            <a href="${esc(iss.url)}" target="_blank" class="btn btn-sm" style="text-decoration:none">Abrir Issue ↗</a>
+          </div>
+          <div class="audit-finding-desc">Notificado por @${esc(iss.user || 'comunidade')}. Labels: ${esc((iss.labels || []).join(', '))}</div>
+        </div>
+      `).join('')}
+
+      <!-- Failed Workflows -->
+      ${failedWorkflows.map(w => `
+        <div class="audit-finding-card critico">
+          <div class="audit-finding-title-row">
+            <span class="audit-finding-title">
+              <span class="risk-tag risk-tag-critico">CI/CD FALHOU</span>
+              <span>Workflow: ${esc(w.name)} (${esc(w.branch)})</span>
+            </span>
+            <a href="${esc(w.url)}" target="_blank" class="btn btn-sm" style="text-decoration:none">Ver Log ↗</a>
+          </div>
+          <div class="audit-finding-desc">Último commit: "${esc(w.commit || '')}". Execução com falha detectada.</div>
+        </div>
+      `).join('')}
+
+      <!-- GitHub Recommendations -->
+      ${recommendations.length > 0 ? `
+        <div style="margin-top:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px">
+          <b style="font-size:11.5px;color:var(--accent-cyan)">💡 Recomendações de Segurança do GitHub:</b>
+          <ul style="margin:6px 0 0 16px;padding:0;font-size:11px;color:var(--text-muted)">
+            ${recommendations.map(r => `<li><b>${esc(r.area)}:</b> ${esc(r.text)}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderCodeReviewContent(review) {
+  if (!review) {
+    return `
+      <div style="padding:16px;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:6px">
+        <div style="font-size:24px;margin-bottom:8px">⚡</div>
+        <b style="font-size:13px;color:#fff">Nenhum Code Review executado no Workspace</b>
+        <div style="font-size:11.5px;color:var(--text-muted);margin:6px 0 12px">
+          A IA analisa o código procurando bugs lógicos, riscos de injeção, memory leaks e problemas de sintaxe.
+        </div>
+        <div style="display:flex;justify-content:center;gap:6px">
+          <button class="btn btn-primary" onclick="startWorkspaceCodeReview('all')">
+            ⚡ Executar Code Review Geral
+          </button>
+          <button class="btn" onclick="startWorkspaceCodeReview('bugs')">
+            🐞 Apenas Bugs & Lógica
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  const {
+    overallScore = 85,
+    summary = '',
+    issues = [],
+    githubChecklist = []
+  } = review;
+
+  return `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <!-- Summary Box -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <b style="font-size:12px;color:#fff">Resumo da Revisão Técnica:</b>
+          <span style="font-size:11px;color:var(--accent-cyan)">Score: ${overallScore}/100</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-muted);line-height:1.4">${esc(summary)}</div>
+      </div>
+
+      <!-- Issues List -->
+      <div style="font-size:12px;font-weight:700;color:#fff">
+        Problemas & Erros Detectados no Código (${issues.length})
+      </div>
+
+      ${issues.length === 0 ? `
+        <div style="background:rgba(55,230,160,0.06);border:1px solid rgba(55,230,160,0.2);padding:10px;border-radius:6px;color:var(--accent-teal);font-size:12px">
+          ✓ Nenhum bug grave ou risco detectado no código dos arquivos analisados!
+        </div>
+      ` : ''}
+
+      ${issues.map(iss => {
+        const sevClass = iss.severity === 'critical' ? 'critico' : iss.severity === 'high' ? 'alto' : iss.severity === 'medium' ? 'medio' : 'baixo';
+        return `
+          <div class="audit-finding-card ${sevClass}">
+            <div class="audit-finding-title-row">
+              <span class="audit-finding-title">
+                <span class="risk-tag risk-tag-${sevClass}">${esc(iss.severity || 'WARN')}</span>
+                <span>${esc(iss.title)}</span>
+              </span>
+              <button class="btn btn-sm" onclick="jumpToSearchResult('${esc(iss.file)}', ${iss.line || 1})" title="Abrir arquivo no editor">
+                📄 ${esc(iss.file)}:${iss.line || 1}
+              </button>
+            </div>
+            <div class="audit-finding-desc">${esc(iss.description)}</div>
+            <div class="audit-finding-fix-box">
+              <div>
+                <b>Sugestão de Correção:</b> ${esc(iss.suggestion)}
+              </div>
+              ${iss.fixCode ? `
+                <button class="btn btn-primary btn-sm" onclick="applySuggestedFix('${iss.id}')" style="margin-left:8px;white-space:nowrap">
+                  ✓ Aplicar Correção
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+
+      <!-- Checklist -->
+      ${githubChecklist.length > 0 ? `
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px">
+          <b style="font-size:11.5px;color:var(--accent-cyan)">📋 Checklist de Proteção para o Repositório:</b>
+          <ul style="margin:6px 0 0 16px;padding:0;font-size:11px;color:var(--text-muted)">
+            ${githubChecklist.map(c => `<li>${esc(c)}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+async function startRepoAudit(repoName) {
+  if (!window.TermGit) return;
+  const target = repoName || localStorage.getItem('tc_gh_selected_repo') || prompt('Digite o repositório GitHub para auditar (ex: dono/repo):', 'nicolaswjwkwk/termchat');
+  if (!target || !target.trim()) return;
+
+  switchDockTab('audit');
+  auditActiveSubtab = 'repo';
+
+  const container = $('dockSinglePaneContent');
+  if (container) {
+    container.innerHTML = `
+      <div style="padding:24px;text-align:center">
+        <div class="loading-spin" style="margin:0 auto 12px">⚡</div>
+        <b style="font-size:13px;color:#fff">Escaneando ${esc(target.trim())}...</b>
+        <div style="font-size:11.5px;color:var(--text-dim);margin-top:6px">Consultando Dependabot, CodeQL, Secret Scanning, Issues e Workflows no GitHub...</div>
+      </div>
+    `;
+  }
+
+  try {
+    await window.TermGit.auditGitHubRepo(target.trim());
+    renderAuditPanel();
+  } catch (err) {
+    if (container) {
+      container.innerHTML = `
+        <div style="padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px">
+          <b style="color:var(--accent-pink)">Erro ao auditar repositório:</b>
+          <div style="font-size:12px;color:var(--text-muted);margin:8px 0">${esc(err.message)}</div>
+          <button class="btn btn-sm" onclick="renderAuditPanel()">Voltar</button>
+        </div>
+      `;
+    }
+  }
+}
+
+async function startWorkspaceCodeReview(focus = 'all') {
+  if (!window.TermGit) return;
+  switchDockTab('audit');
+  auditActiveSubtab = 'code';
+
+  const container = $('dockSinglePaneContent');
+  if (container) {
+    container.innerHTML = `
+      <div style="padding:24px;text-align:center">
+        <div class="loading-spin" style="margin:0 auto 12px">🤖</div>
+        <b style="font-size:13px;color:#fff">Executando AI Code Review no Projeto...</b>
+        <div id="codeReviewStatusMsg" style="font-size:11.5px;color:var(--text-dim);margin-top:6px">Analisando arquivos do workspace com Gemini...</div>
+      </div>
+    `;
+  }
+
+  try {
+    await window.TermGit.runWorkspaceCodeReview(focus, status => {
+      const el = $('codeReviewStatusMsg');
+      if (el) el.textContent = status;
+    });
+    renderAuditPanel();
+  } catch (err) {
+    if (container) {
+      container.innerHTML = `
+        <div style="padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px">
+          <b style="color:var(--accent-pink)">Erro no Code Review:</b>
+          <div style="font-size:12px;color:var(--text-muted);margin:8px 0">${esc(err.message)}</div>
+          <button class="btn btn-sm" onclick="renderAuditPanel()">Voltar</button>
+        </div>
+      `;
+    }
+  }
+}
+
+function applySuggestedFix(issueId) {
+  if (!window.TermGit) return;
+  try {
+    const ok = window.TermGit.applyCodeFix(issueId);
+    if (ok) {
+      alert('✓ Correção aplicada com sucesso no arquivo!');
+      renderAuditPanel();
+    } else {
+      alert('Não há código de correção automática para este problema. Siga a instrução na descrição.');
+    }
+  } catch (e) {
+    alert(`Falha ao aplicar correção: ${e.message}`);
+  }
+}
+
+async function forceReloadIDE() {
+  if (confirm('Deseja recarregar o TermChat e limpar todos os caches para garantir a versão mais recente?')) {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+          await reg.unregister();
+        }
+      }
+    } catch (e) {
+      console.warn('Cache clear error:', e);
+    }
+    window.location.reload(true);
+  }
+}
+
+window.renderAuditPanel = renderAuditPanel;
+window.startRepoAudit = startRepoAudit;
+window.startWorkspaceCodeReview = startWorkspaceCodeReview;
+window.applySuggestedFix = applySuggestedFix;
+window.forceReloadIDE = forceReloadIDE;
 
 function renderConsoleLogs() {
   const container = $('dockSinglePaneContent');

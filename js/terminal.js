@@ -273,6 +273,18 @@ class TermSandbox {
         this.print(this.escape(args.join(' ')), 'text');
         break;
 
+      case 'audit':
+      case 'review':
+      case 'scan': {
+        const focus = args[0] || 'all';
+        this.print(`🛡️ Abrindo painel de Auditoria & Code Review (${focus})...`, 'info');
+        if (window.switchDockTab) window.switchDockTab('audit');
+        if (window.startWorkspaceCodeReview) {
+          window.startWorkspaceCodeReview(focus);
+        }
+        break;
+      }
+
       default:
         this.print(`Comando desconhecido: "${cmd}". Digite "help" para ver os comandos.`, 'err');
     }
@@ -284,6 +296,17 @@ class TermSandbox {
     if (!ws.git) ws.git = { branch: 'main', branches: ['main'], commits: [] };
 
     switch (sub) {
+      case 'audit':
+      case 'review': {
+        const repo = args[1] || localStorage.getItem('tc_gh_selected_repo') || 'nicolaswjwkwk/termchat';
+        this.print(`🛡️ Escaneando Repositório GitHub: ${repo}...`, 'info');
+        if (window.switchDockTab) window.switchDockTab('audit');
+        if (window.startRepoAudit) {
+          window.startRepoAudit(repo);
+        }
+        break;
+      }
+
       case 'status': {
         const files = window.TermVFS.listFiles();
         this.print(`No branch <span style="color:#37e6a0">${ws.git.branch}</span>`, 'info');

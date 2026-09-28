@@ -8,12 +8,12 @@
 <meta property="og:title" content="TermChat — Web IDE & AI Development Platform">
 <meta property="og:description" content="TermChat — IDE web avançada com IA, editor de código, explorador de arquivos, terminal e plugins.">
 <meta name="robots" content="index,follow">
-<title>TermChat v2.0 — Web IDE & AI Development Platform</title>
+<title>TermChat v2.1 — Web IDE, AI Code Review & GitHub Audit</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192x192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="theme-color" content="#06090f">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2.1.0">
 </head>
 <body>
 <div id="app-container">
@@ -49,6 +49,11 @@
         <span style="font-size:9px">▾</span>
       </div>
 
+      <button class="btn-head-audit" onclick="switchDockTab('audit')" title="Auditoria de Repositório & Riscos GitHub">
+        <span>🛡️</span>
+        <span>Verificar Erros & Riscos</span>
+      </button>
+
       <button class="btn-connect-gh" onclick="TermGit.loginWithGitHub()" title="Conectar ao GitHub">
         <span>🐙</span>
         <span id="btnConnectText">Conectar</span>
@@ -56,6 +61,10 @@
 
       <button id="voiceMicBtn" class="btn-icon-head" onclick="TermVoice.toggleListen()" title="Comando por voz (Microfone)">
         🎙️
+      </button>
+
+      <button class="btn-icon-head" onclick="forceReloadIDE()" title="Atualizar IDE / Limpar Cache">
+        🔄
       </button>
 
       <button class="btn-icon-head" onclick="toggleTheme()" title="Alternar tema claro/escuro">
@@ -77,6 +86,8 @@
         <div class="menu-entry separator"></div>
         <div class="menu-entry" onclick="TermVFS.createSnapshot('Manual'); alert('Snapshot criado com sucesso!')">Criar Snapshot <span class="shortcut">Ctrl+Shift+S</span></div>
         <div class="menu-entry" onclick="TermGit.exportZip()">Exportar Workspace (JSON)</div>
+        <div class="menu-entry separator"></div>
+        <div class="menu-entry" onclick="forceReloadIDE()">🔄 Atualizar IDE e Limpar Cache</div>
       </div>
     </div>
 
@@ -104,6 +115,7 @@
         <div class="menu-entry" onclick="toggleAgentPanel()">Alternar Painel de IA <span class="shortcut">Ctrl+J</span></div>
         <div class="menu-entry" onclick="toggleBottomDock()">Alternar Terminal / Dock <span class="shortcut">Ctrl+`</span></div>
         <div class="menu-entry separator"></div>
+        <div class="menu-entry" onclick="switchDockTab('audit')">🛡️ Auditoria & Riscos no Repositório</div>
         <div class="menu-entry" onclick="switchDockTab('preview')">Live Preview da Aplicação</div>
       </div>
     </div>
@@ -121,6 +133,7 @@
       <div id="menu-executar" class="menu-dropdown hidden">
         <div class="menu-entry" onclick="executeQuickCommand('npm test')">Executar Testes <span class="shortcut">F5</span></div>
         <div class="menu-entry" onclick="executeQuickCommand('npm run build')">Compilar / Build</div>
+        <div class="menu-entry" onclick="switchDockTab('audit'); startWorkspaceCodeReview('all')">🛡️ Verificar Erros no Código (Code Review) <span class="shortcut">F6</span></div>
         <div class="menu-entry" onclick="switchDockTab('preview')">Iniciar Live Preview</div>
       </div>
     </div>
@@ -130,6 +143,7 @@
       <div id="menu-terminal" class="menu-dropdown hidden">
         <div class="menu-entry" onclick="switchDockTab('terminal'); document.getElementById('terminalInput').focus()">Novo Terminal <span class="shortcut">Ctrl+Shift+`</span></div>
         <div class="menu-entry" onclick="executeQuickCommand('clear')">Limpar Terminal</div>
+        <div class="menu-entry" onclick="executeQuickCommand('audit')">Executar Auditoria via Terminal</div>
         <div class="menu-entry" onclick="executeQuickCommand('help')">Ajuda de Comandos</div>
       </div>
     </div>
@@ -137,6 +151,7 @@
     <div style="position:relative">
       <button class="menu-item-btn" onclick="toggleMenu('menu-git')">Git</button>
       <div id="menu-git" class="menu-dropdown hidden">
+        <div class="menu-entry" onclick="switchDockTab('audit'); startRepoAudit()">🛡️ Auditar Repositório GitHub (Bugs & Riscos)</div>
         <div class="menu-entry" onclick="switchDockTab('git')">Abrir Painel Git / GitHub</div>
         <div class="menu-entry" onclick="doGitHubPull()">Pull Remoto (GitHub)</div>
         <div class="menu-entry" onclick="doGitHubPush()">Push Remoto (GitHub)</div>
@@ -147,8 +162,9 @@
     <div style="position:relative">
       <button class="menu-item-btn" onclick="toggleMenu('menu-ajuda')">Ajuda</button>
       <div id="menu-ajuda" class="menu-dropdown hidden">
-        <div class="menu-entry" onclick="alert('TermChat v2.0 - IDE Web com IA\nOpen Source MIT\nSuporte nativo a Gemini, OpenCode, Git e Terminal.')">Sobre o TermChat</div>
+        <div class="menu-entry" onclick="alert('TermChat v2.1 - IDE Web com IA\nAuditoria de Código & GitHub Integrados\nOpen Source MIT.')">Sobre o TermChat</div>
         <div class="menu-entry" onclick="window.open('https://github.com/nicolaswjwkwk/termchat', '_blank')">Repositório GitHub</div>
+        <div class="menu-entry" onclick="forceReloadIDE()">🔄 Atualizar IDE / Limpar Cache</div>
         <div class="menu-entry" onclick="executeQuickCommand('help')">Documentação de Comandos</div>
       </div>
     </div>
@@ -411,6 +427,7 @@
             <div class="dock-tabs">
               <button class="dock-tab active" id="dockTabTerminal" onclick="switchDockTab('terminal')">TERMINAL</button>
               <button class="dock-tab" id="dockTabProblems" onclick="switchDockTab('problems')">PROBLEMAS <span class="dock-badge-num" id="problemsBadgeCount">0</span></button>
+              <button class="dock-tab" id="dockTabAudit" onclick="switchDockTab('audit')" style="color:var(--accent-cyan);font-weight:700">🛡️ AUDITORIA & RISCOS <span class="dock-badge-num" id="auditBadgeCount">!</span></button>
               <button class="dock-tab" id="dockTabGit" onclick="switchDockTab('git')">GIT</button>
               <button class="dock-tab" id="dockTabPreview" onclick="switchDockTab('preview')">PREVIEW</button>
               <button class="dock-tab" id="dockTabConsole" onclick="switchDockTab('console')">CONSOLE</button>
@@ -723,11 +740,13 @@
     </div>
 
     <div class="statusbar-right">
+      <div class="status-item" onclick="switchDockTab('audit')" title="Auditoria de Repositório & Riscos" style="cursor:pointer;color:var(--accent-cyan)">🛡️ Riscos: <span id="sbRisksCount">0</span></div>
       <div class="status-item">UTF-8</div>
       <div class="status-item">LF</div>
       <div class="status-item">JavaScript JSX</div>
       <div class="status-item">✓ Prettier</div>
       <div class="status-item" onclick="toggleLayoutMode()" title="Mudar Layout">Layout: IDE ⊞</div>
+      <div class="status-item" onclick="forceReloadIDE()" title="Atualizar IDE e Limpar Cache" style="cursor:pointer">🔄 v2.1.0</div>
       <div class="status-item" onclick="toggleModelsDrawer()" title="Modelos de IA">🤖</div>
     </div>
   </footer>
@@ -736,6 +755,7 @@
   <nav class="mobile-ide-toolbar" id="mobileIdeToolbar">
     <button onclick="mobileFocusPanel('sidebar')" class="mobile-tab-btn active" id="mTabSidebar">📁 Arquivos</button>
     <button onclick="mobileFocusPanel('editor')" class="mobile-tab-btn" id="mTabEditor">💻 Editor</button>
+    <button onclick="switchDockTab('audit')" class="mobile-tab-btn" id="mTabAudit">🛡️ Riscos</button>
     <button onclick="mobileFocusPanel('dock')" class="mobile-tab-btn" id="mTabDock">⌨️ Terminal</button>
     <button onclick="mobileFocusPanel('preview')" class="mobile-tab-btn" id="mTabPreview">🌐 Preview</button>
     <button onclick="mobileFocusPanel('agent')" class="mobile-tab-btn" id="mTabAgent">🤖 Agente IA</button>
@@ -860,15 +880,15 @@
 <div id="permList" class="hidden"></div>
 <div id="gitCommitList" class="hidden"></div>
 
-<!-- Application Scripts -->
-<script src="js/auth.js"></script>
-<script src="js/vfs.js"></script>
-<script src="js/editor.js"></script>
-<script src="js/terminal.js"></script>
-<script src="js/git.js"></script>
-<script src="js/agents.js"></script>
-<script src="js/voice.js"></script>
-<script src="js/logs.js"></script>
-<script src="js/app.js"></script>
+<!-- Application Scripts with Cache-Busting Version Query -->
+<script src="js/auth.js?v=2.1.0"></script>
+<script src="js/vfs.js?v=2.1.0"></script>
+<script src="js/editor.js?v=2.1.0"></script>
+<script src="js/terminal.js?v=2.1.0"></script>
+<script src="js/git.js?v=2.1.0"></script>
+<script src="js/agents.js?v=2.1.0"></script>
+<script src="js/voice.js?v=2.1.0"></script>
+<script src="js/logs.js?v=2.1.0"></script>
+<script src="js/app.js?v=2.1.0"></script>
 </body>
 </html>

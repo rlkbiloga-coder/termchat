@@ -418,6 +418,102 @@ class TermGitManager {
       window.TermLogs.add('Git', `Projeto exportado: ${data.project}`, 'info');
     }
   }
+
+  // --- GitHub Repository Security & Bugs Audit Scanner ---
+  async auditGitHubRepo(fullName) {
+    if (!fullName) {
+      fullName = localStorage.getItem(this.selectedRepoKey) || 'nicolaswjwkwk/termchat';
+    }
+    const [owner, repo] = fullName.split('/');
+    if (!owner || !repo) throw new Error('Repositório inválido. Formato esperado: dono/repo');
+
+    if (window.TermLogs) {
+      window.TermLogs.add('Auditoria', `Escaneando vulnerabilidades, bugs e Dependabot de ${fullName}...`, 'info');
+    }
+
+    const headers = {};
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+
+    const res = await fetch(`/api/github/audit?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`, {
+      headers
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'Falha ao auditar repositório.');
+    }
+
+    this.lastRepoAudit = data;
+    localStorage.setItem('tc_last_repo_audit', JSON.stringify(data));
+
+    if (window.TermLogs) {
+      window.TermLogs.add('Auditoria', `Auditoria concluída para ${fullName}. Score de Segurança: ${data.securityScore}/100 [Risco ${data.riskLevel}]`, data.riskLevel === 'BAIXO' ? 'success' : 'warn');
+    }
+
+    return data;
+  }
+
+  // --- AI Code Review & Bug Scanner for Workspace Files ---
+  async runWorkspaceCodeReview(focus = 'all', onProgress = () => {}) {
+    onProgress('Coletando arquivos do projeto para auditoria...');
+    const filePaths = window.TermVFS ? window.TermVFS.listFiles() : [];
+    if (filePaths.length === 0) {
+      throw new Error('Nenhum arquivo no workspace para analisar.');
+    }
+
+    const files = filePaths.slice(0, 15).map(p => {
+      const f = window.TermVFS.getFile(p);
+      return { path: p, content: f ? f.content : '' };
+    });
+
+    onProgress(`Analisando ${files.length} arquivos com IA (bugs, vulnerabilidades e riscos)...`);
+    const repoName = window.TermVFS.getCurrentWorkspace()?.name || 'meu-projeto';
+
+    const res = await fetch('/api/code-review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        files,
+        repoName,
+        focus
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'Falha ao executar Code Review.');
+    }
+
+    this.lastCodeReview = data;
+    localStorage.setItem('tc_last_code_review', JSON.stringify(data));
+
+    if (window.TermLogs) {
+      window.TermLogs.add('CodeReview', `Revisão de código concluída. Score: ${data.overallScore}/100. Problemas detectados: ${data.issues?.length || 0}`, 'info');
+    }
+
+    return data;
+  }
+
+  // --- Apply automated fix suggested by AI ---
+  applyCodeFix(issueId) {
+    if (!this.lastCodeReview || !this.lastCodeReview.issues) {
+      throw new Error('Nenhuma revisão de código recente encontrada.');
+    }
+    const issue = this.lastCodeReview.issues.find(i => i.id === issueId);
+    if (!issue) throw new Error('Problema não encontrado.');
+
+    if (issue.fixCode && window.TermVFS) {
+      window.TermVFS.writeFile(issue.file, issue.fixCode, 'AI-Fix');
+      if (window.TermEditorInst && window.TermEditorInst.activeFile === issue.file) {
+        window.TermEditorInst.openFile(issue.file);
+      }
+      if (window.TermLogs) {
+        window.TermLogs.add('CodeReview', `Correção aplicada com sucesso em ${issue.file}`, 'success');
+      }
+      return true;
+    }
+    return false;
+  }
 }
 
 window.TermGit = new TermGitManager();
