@@ -105,6 +105,7 @@ O aplicativo estará disponível em: **`http://localhost:3000`**
 ### Variáveis de Ambiente (Opcionais em `.env`)
 ```env
 GEMINI_API_KEY=sua_chave_gemini_aqui
+NVIDIA_API_KEY=sua_chave_nvapi_aqui
 GITHUB_CLIENT_ID=seu_client_id_github
 GITHUB_CLIENT_SECRET=seu_client_secret_github
 GOOGLE_CLIENT_ID=seu_client_id_google

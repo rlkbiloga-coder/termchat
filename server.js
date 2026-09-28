@@ -59,7 +59,8 @@ app.get('/health', (req, res) => {
     ok: true,
     service: 'termchat-bridge',
     version: '2.0.0',
-    providers: ['gemini', 'zen', 'pollinations', 'groq', 'openrouter', 'ollama'],
+    providers: ['gemini', 'nvidia', 'zen', 'pollinations', 'groq', 'openrouter', 'ollama'],
+    nvidiaConfigured: Boolean(process.env.NVIDIA_API_KEY),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY)
   });
 });
@@ -88,6 +89,20 @@ app.get('/api/models', (req, res) => {
         ],
         defaultModel: 'gemini-3.8-flash',
         capabilities: ['code_generation', 'code_review', 'vision', 'grounding', 'live_audio', 'tts', 'embeddings']
+      },
+      {
+        id: 'nvidia',
+        name: 'NVIDIA NIM (Nemotron 3 Nano / Nemotron 70B / Nemotron 4 340B)',
+        icon: 'nvidia',
+        free: true,
+        requiresKey: !process.env.NVIDIA_API_KEY,
+        models: [
+          'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+          'nvidia/llama-3.1-nemotron-70b-instruct',
+          'nvidia/nemotron-4-340b-instruct'
+        ],
+        defaultModel: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+        capabilities: ['code_generation', 'code_review', 'reasoning']
       },
       {
         id: 'meta',
@@ -444,7 +459,7 @@ async function callUpstream({ target, provider, model, messages, apiKey, customB
   }
 
   if (provider === 'nvidia') {
-    body.model = model || 'nvidia/llama-3.1-nemotron-70b-instruct';
+    body.model = model || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
     body.max_tokens = 4096;
     body.temperature = 0.6;
     body.top_p = 0.95;
