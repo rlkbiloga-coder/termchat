@@ -1,0 +1,65 @@
+# Agente de Release — cria tag e GitHub Release quando ha commits novos
+# So GITHUB_TOKEN, ferramentas open source (git + gh CLI). Zero custo.
+name: Agente de Release
+on:
+  schedule:
+    - cron: "0 10 * * 5"   # toda sexta, 07:00 Brasilia
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ha commits novos desde a ultima tag?
+        id: checar
+        run: |
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ -n "$last_tag" ]; then
+            novos=$(git rev-list --count "$last_tag"..HEAD)
+          else
+            novos=$(git rev-list --count HEAD)
+          fi
+          echo "commits_novos=$novos" >> "$GITHUB_OUTPUT"
+          echo "ultima_tag=$last_tag" >> "$GITHUB_OUTPUT"
+          echo "Commits novos desde ${last_tag:-nenhuma tag}: $novos"
+
+      - name: Criar tag e release
+        if: steps.checar.outputs.commits_novos != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ver=$(node -p "require('./package.json').version")
+          last_tag="${{ steps.checar.outputs.ultima_tag }}"
+          if [ -z "$last_tag" ]; then
+            nova="v$ver"
+          else
+            nova=$(node -p "'v' + require('./package.json').version.split('.').map((n,i)=>i==2?+n+1:n).join('.')")
+            node -e "
+              const fs = require('fs');
+              const p = JSON.parse(fs.readFileSync('package.json','utf8'));
+              p.version = '${nova#v}';
+              fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+            "
+            git config user.name "Agente de Release"
+            git config user.email "actions@github.com"
+            git add package.json
+            git commit -m "chore(release): bump versao para ${nova#v} (Agente de Release)"
+            git push
+          fi
+          last_tag="${{ steps.checar.outputs.ultima_tag }}"
+          range="${last_tag:+$last_tag..}HEAD"
+          git log $range --pretty=format:'* %s (%h)' | head -100 > /tmp/notas.md
+          gh release create "$nova" --title "TermChat $nova" \
+            --notes-file /tmp/notas.md --latest
+          echo "Release $nova criada."
+
+      - name: Sem novidades
+        if: steps.checar.outputs.commits_novos == '0'
+        run: echo "Nenhum commit novo desde a ultima tag. Sem release hoje."

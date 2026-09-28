@@ -1,0 +1,191 @@
+# SUPERAGENTE ORQUESTRADOR — o opensource que manda em todos
+#
+# Este e o cerebro da frota. Ele:
+#   1. Mantem o issue "Relatorio do Superagente" atualizado com o status
+#      de TODOS os agentes (verde/vermelho + ultima execucao).
+#   2. Mantem o issue "Comandos do Imperador" — a API de comandos.
+#      Somente o login nicolaswjwkwk (o Imperador) pode comandar la:
+#        /status   -> relatorio completo de todos os agentes
+#        /rodar tudo -> dispara todos os agentes agora
+#        /rodar performance (ou outro nome) -> dispara so esse
+#        /relatorio -> atualiza o issue de relatorio
+#
+# Usa apenas o token do workflow (GITHUB_TOKEN) e a API aberta do GitHub.
+# Zero dependencia de token do Superagente Base44, zero servico pago.
+name: Superagente Orquestrador
+on:
+  schedule:
+    - cron: "0 11 * * 5"   # toda sexta, 08:00 Brasilia
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  issues: write
+  actions: write
+jobs:
+  comandos:
+    # Comandos do Imperador via comentario no issue de comandos
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const IMPERADOR = 'nicolaswjwkwk';
+            const { owner, repo } = context.repo;
+            const comment = context.payload.comment;
+            const issue = context.payload.issue;
+
+            // So o Imperador comanda, e so no issue de comandos
+            if (comment.user.login !== IMPERADOR) return;
+            if (!issue.labels.some(l => l.name === 'comandos-do-imperador')) return;
+
+            const mapa = {
+              'guardiao': 'guardiao.yml',
+              'qualidade': 'qualidade.yml',
+              'seguranca': 'seguranca.yml',
+              'manutencao': 'manutencao.yml',
+              'entrega': 'entrega.yml',
+              'conteudo': 'conteudo.yml',
+              'performance': 'performance.yml',
+              'acessibilidade': 'acessibilidade.yml',
+              'release': 'release.yml',
+              'monitoramento': 'monitoramento.yml'
+            };
+
+            async function relatorio() {
+              let linhas = ['| Agente | Situacao | Ultima execucao |', '|---|---|---|'];
+              for (const arquivo of Object.values(mapa)) {
+                const r = await github.rest.actions.listWorkflowRuns({
+                  owner, repo, workflow_id: arquivo, per_page: 1
+                });
+                const run = r.data.workflow_runs[0];
+                if (run) {
+                  linhas.push('| ' + run.name + ' | ' + (run.conclusion || run.status) + ' | ' + run.updated_at.slice(0, 10) + ' |');
+                } else {
+                  linhas.push('| ' + arquivo + ' | nunca rodou | - |');
+                }
+              }
+              return linhas.join('\n');
+            }
+
+            const cmd = comment.body.trim().toLowerCase();
+            try {
+              if (cmd.startsWith('/status')) {
+                const corpo = '## Status da frota\n\n' + await relatorio();
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number, body: corpo
+                });
+              } else if (cmd.startsWith('/rodar')) {
+                const alvo = cmd.split(/\s+/)[1];
+                const despachar = alvo && mapa[alvo]
+                  ? [[alvo, mapa[alvo]]]
+                  : Object.entries(mapa);
+                const resultado = [];
+                for (const [nome, arquivo] of despachar) {
+                  try {
+                    await github.rest.actions.createWorkflowDispatch({
+                      owner, repo, workflow_id: arquivo, ref: 'main'
+                    });
+                    resultado.push('✅ ' + nome);
+                  } catch (e) {
+                    resultado.push('❌ ' + nome + ': ' + e.message);
+                  }
+                }
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number,
+                  body: '👑 A ordem do Imperador foi dada. Frota despachada:\n\n' + resultado.join('\n')
+                });
+              } else if (cmd.startsWith('/relatorio')) {
+                const corpo = '## Relatorio do Superagente\n\n' + await relatorio();
+                const issues = await github.rest.issues.listForRepo({
+                  owner, repo, labels: 'superagente', state: 'open'
+                });
+                const alvo = issues.data.find(i => i.title.startsWith('Relatorio do Superagente'));
+                if (alvo) {
+                  await github.rest.issues.update({
+                    owner, repo, issue_number: alvo.number, body: corpo
+                  });
+                  await github.rest.issues.createComment({
+                    owner, repo, issue_number: issue.number,
+                    body: 'Relatorio central atualizado.'
+                  });
+                }
+              } else {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number,
+                  body: 'Comandos disponiveis: `/status`, `/rodar tudo`, `/rodar <agente>` (guardiao, qualidade, seguranca, manutencao, entrega, conteudo, performance, acessibilidade, release, monitoramento), `/relatorio`'
+                });
+              }
+            } catch (e) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: issue.number,
+                body: '❌ Erro ao executar o comando: ' + e.message
+              });
+            }
+
+  relatorio:
+    # Relatorio semanal automatico da frota inteira
+    if: github.event_name != 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const arquivos = ['guardiao.yml','qualidade.yml','seguranca.yml','manutencao.yml','entrega.yml','conteudo.yml','performance.yml','acessibilidade.yml','release.yml','monitoramento.yml'];
+            let linhas = ['| Agente | Situacao | Ultima execucao |', '|---|---|---|'];
+            for (const arquivo of arquivos) {
+              const r = await github.rest.actions.listWorkflowRuns({
+                owner, repo, workflow_id: arquivo, per_page: 1
+              });
+              const run = r.data.workflow_runs[0];
+              if (run) {
+                linhas.push('| ' + run.name + ' | ' + (run.conclusion || run.status) + ' | ' + run.updated_at.slice(0, 10) + ' |');
+              } else {
+                linhas.push('| ' + arquivo + ' | nunca rodou | - |');
+              }
+            }
+            const corpoRelatorio = 'Relatorio semanal da frota, gerado automaticamente em ' +
+              new Date().toISOString().slice(0, 10) + '.\n\n' + linhas.join('\n');
+
+            // Garante o issue de relatorio
+            const abertos = await github.rest.issues.listForRepo({
+              owner, repo, labels: 'superagente', state: 'all', per_page: 50
+            });
+            let rel = abertos.data.find(i => i.title.startsWith('Relatorio do Superagente'));
+            if (rel) {
+              await github.rest.issues.update({
+                owner, repo, issue_number: rel.number,
+                body: corpoRelatorio, state: 'open'
+              });
+            } else {
+              rel = await github.rest.issues.create({
+                owner, repo, title: 'Relatorio do Superagente',
+                body: corpoRelatorio, labels: ['superagente']
+              });
+            }
+
+            // Garante o issue de comandos do Imperador
+            const cmdIssues = await github.rest.issues.listForRepo({
+              owner, repo, labels: 'comandos-do-imperador', state: 'all', per_page: 50
+            });
+            const corpoCmd =
+              '👑 *Comandos do Imperador* (nicolaswjwkwk)\n\n' +
+              'Comente neste issue para comandar a frota:\n\n' +
+              '* `/status` — situacao de todos os agentes\n' +
+              '* `/rodar tudo` — dispara todos os agentes agora\n' +
+              '* `/rodar performance` — dispara um agente especifico (guardiao, qualidade, seguranca, manutencao, entrega, conteudo, performance, acessibilidade, release, monitoramento)\n' +
+              '* `/relatorio` — atualiza o relatorio central\n\n' +
+              'Apenas o Imperador pode comandar. Todos os outros logins sao ignorados.';
+            if (!cmdIssues.data.length) {
+              await github.rest.issues.create({
+                owner, repo, title: '👑 Comandos do Imperador',
+                body: corpoCmd, labels: ['comandos-do-imperador']
+              });
+            } else if (cmdIssues.data[0].state === 'closed') {
+              await github.rest.issues.update({
+                owner, repo, issue_number: cmdIssues.data[0].number, state: 'open'
+              });
+            }

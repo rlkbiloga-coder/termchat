@@ -1,0 +1,69 @@
+# Agente de Acessibilidade — varre o site publicado em busca de barreiras
+# Usa apenas o token do workflow (GITHUB_TOKEN). Open source, zero custo.
+name: Agente de Acessibilidade
+on:
+  schedule:
+    - cron: "0 10 * * 4"   # toda quinta, 07:00 Brasilia
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  acessibilidade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Auditoria de acessibilidade (Lighthouse)
+        id: a11y
+        continue-on-error: true
+        run: |
+          npm install -g lighthouse
+          lighthouse "https://nicolaswjwkwk.github.io/termchat/" \
+            --output=json --output-path=/tmp/lh.json \
+            --chrome-flags="--headless --no-sandbox" \
+            --only-categories=accessibility --quiet
+          node - <<'EOF'
+          const lh = require('/tmp/lh.json');
+          const a = Math.round((lh.categories.accessibility.score || 0) * 100);
+          const falhas = Object.values(lh.audits)
+            .filter(x => x.score !== null && x.score < 0.9 && x.scoreDisplayMode === 'metricSavings' || (x.score !== null && x.score < 0.9 && x.id))
+            .filter(x => x.id && !String(x.id).startsWith('metrics'))
+            .slice(0, 10)
+            .map(x => '* ' + x.title + ' — ' + (x.description || '').slice(0, 120));
+          const corpo =
+            '## Auditoria de acessibilidade\n\n' +
+            '* Nota geral: **' + a + '/100** ' + (a >= 90 ? '✅' : (a >= 60 ? '⚠️' : '❌')) + '\n\n' +
+            (falhas.length ? 'Principais barreiras encontradas:\n' + falhas.join('\n') : 'Nenhuma barreira relevante encontrada.') + '\n';
+          require('fs').writeFileSync('/tmp/resumo.md', corpo);
+          console.log(corpo);
+          process.exit(a < 85 ? 1 : 0);
+          EOF
+
+      - name: Barreiras encontradas → issue para o Imperador
+        if: steps.a11y.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let corpo = 'A auditoria de acessibilidade falhou ao rodar.';
+            try { corpo = require('fs').readFileSync('/tmp/resumo.md', 'utf8'); } catch (e) {}
+            const titulo = '♿ Acessibilidade do site precisa de atencao';
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              labels: 'acessibilidade', state: 'open'
+            });
+            const ja = issues.data.find(i => i.title === titulo);
+            if (ja) {
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: ja.number, body: corpo
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: titulo, body: corpo, labels: ['acessibilidade']
+              });
+            }

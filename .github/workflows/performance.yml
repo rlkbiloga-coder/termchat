@@ -1,0 +1,71 @@
+# Agente de Performance — mede o site publicado com Lighthouse (open source)
+# Usa apenas o token do workflow (GITHUB_TOKEN). Nenhum servico pago.
+name: Agente de Performance
+on:
+  schedule:
+    - cron: "0 10 * * 3"   # toda quarta, 07:00 Brasilia
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Lighthouse no site publicado
+        id: lh
+        continue-on-error: true
+        run: |
+          npm install -g lighthouse
+          lighthouse "https://nicolaswjwkwk.github.io/termchat/" \
+            --output=json --output-path=/tmp/lh.json \
+            --chrome-flags="--headless --no-sandbox" \
+            --only-categories=performance,best-practices --quiet
+          node - <<'EOF'
+          const lh = require('/tmp/lh.json');
+          const cat = lh.categories;
+          const p = Math.round((cat.performance.score || 0) * 100);
+          const b = Math.round((cat['best-practices'].score || 0) * 100);
+          const marca = n => n >= 90 ? '✅' : (n >= 50 ? '⚠️' : '❌');
+          const corpo =
+            '## Relatorio Lighthouse\n\n' +
+            '* Performance: **' + p + '/100** ' + marca(p) + '\n' +
+            '* Boas praticas: **' + b + '/100** ' + marca(b) + '\n\n' +
+            'Metricas principais:\n' +
+            '* First Contentful Paint: ' + Math.round(lh.audits['first-contentful-paint'].numericValue) + 'ms\n' +
+            '* Total Blocking Time: ' + Math.round(lh.audits['total-blocking-time'].numericValue) + 'ms\n' +
+            '* Tamanho da pagina: ' + Math.round((lh.audits['total-byte-weight'] || {numericValue: 0}).numericValue / 1024) + ' KB\n';
+          require('fs').writeFileSync('/tmp/resumo.md', corpo);
+          console.log(corpo);
+          process.exit(p < 50 || b < 50 ? 1 : 0);
+          EOF
+
+      - name: Nota baixa ou falha → issue para o Imperador
+        if: steps.lh.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let corpo = 'Lighthouse falhou ao rodar no site publicado.';
+            try { corpo = require('fs').readFileSync('/tmp/resumo.md', 'utf8'); } catch (e) {}
+            const titulo = '⚠️ Performance do site abaixo do esperado';
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              labels: 'performance', state: 'open'
+            });
+            const ja = issues.data.find(i => i.title === titulo);
+            if (ja) {
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: ja.number, body: corpo
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: titulo, body: corpo, labels: ['performance']
+              });
+            }

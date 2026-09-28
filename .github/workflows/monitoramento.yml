@@ -1,0 +1,78 @@
+# Agente de Monitoramento — vigia o site no ar a cada 6 horas
+# Cria issue quando cai, fecha quando volta. So GITHUB_TOKEN, zero custo.
+name: Agente de Monitoramento
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # a cada 6 horas
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  vigiar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Site e recursos publicos respondendo?
+        id: vigia
+        run: |
+          base="https://nicolaswjwkwk.github.io/termchat"
+          inicio=$(date +%s%N)
+          fail=0
+          for caminho in "" "manifest.json" "service-worker.js" "plugins.json"; do
+            codigo=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$base/$caminho" || echo 000)
+            if [ "$codigo" != "200" ]; then
+              echo "FALHOU: /$caminho -> HTTP $codigo"
+              fail=1
+            fi
+          done
+          fim=$(date +%s%N)
+          echo "latency=$(( (fim-inicio)/1000000 ))ms" >> "$GITHUB_OUTPUT"
+          [ "$fail" = "0" ]
+
+      - name: Site caiu → abrir issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const titulo = '🚨 Site fora do ar';
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              labels: 'monitoramento', state: 'open'
+            });
+            if (issues.data.some(i => i.title === titulo)) {
+              console.log('Queda ja registrada, mantendo issue aberta.');
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title: titulo,
+              body: 'O Agente de Monitoramento nao conseguiu acessar o site publicado agora.\n\n' +
+                    'Verificado em: ' + new Date().toISOString() + '\n\n' +
+                    'O Agente de Monitoramento voltara a checar em 6 horas e fechara esta issue quando o site voltar.',
+              labels: ['monitoramento']
+            });
+
+      - name: Site voltou → fechar issue
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const titulo = '🚨 Site fora do ar';
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              labels: 'monitoramento', state: 'open'
+            });
+            const queda = issues.data.find(i => i.title === titulo);
+            if (queda) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: queda.number,
+                body: '✅ Site de volta ao ar. Fechando o alerta.'
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: queda.number, state: 'closed'
+              });
+            } else {
+              console.log('Site no ar, nada a fazer.');
+            }

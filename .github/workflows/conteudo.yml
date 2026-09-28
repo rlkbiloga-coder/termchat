@@ -1,0 +1,49 @@
+# Agente de Conteudo — mantem CHANGELOG e docs vivos
+# Usa apenas o token do workflow (GITHUB_TOKEN). Open source, zero custo.
+name: Agente de Conteudo
+on:
+  schedule:
+    - cron: "0 10 * * 1"   # toda segunda, 07:00 Brasilia
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+jobs:
+  conteudo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gerar CHANGELOG desde a ultima tag
+        run: |
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          {
+            echo "# Changelog do TermChat"
+            echo ""
+            echo "Atualizado automaticamente pelo Agente de Conteudo em $(date -u +%Y-%m-%d)."
+            echo ""
+            if [ -n "$last_tag" ]; then
+              echo "## Commits desde $last_tag"
+              git log "$last_tag"..HEAD --pretty=format:'* %s (%h)' | head -150
+            else
+              echo "## Ultimos commits"
+              git log -50 --pretty=format:'* %s (%h)'
+            fi
+          } > CHANGELOG.md
+          head -20 CHANGELOG.md
+
+      - name: Commit se o changelog mudou
+        run: |
+          git config user.name "Agente de Conteudo"
+          git config user.email "actions@github.com"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "Changelog ja em dia."
+          else
+            git commit -m "docs: changelog atualizado (Agente de Conteudo)"
+            git push
+            echo "Changelog atualizado e publicado."
+          fi
