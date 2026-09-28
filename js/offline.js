@@ -75,15 +75,25 @@
     }
 
     // 2) Pollinations: livre, sem chave, CORS aberto
-    const r = await origFetch('https://text.pollinations.ai/openai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'openai', messages: messages })
-    });
-    if (!r.ok) throw new Error('Pollinations status ' + r.status);
-    const d = await r.json();
-    const text = d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content;
-    if (!text) throw new Error('Resposta vazia da IA direta');
-    return { text: text, provider: 'pollinations-direto' };
+    try {
+      const r = await origFetch('https://text.pollinations.ai/openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'openai', messages: messages })
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const text = d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content;
+        if (text) return { text: text, provider: 'pollinations-direto' };
+      }
+    } catch (e) { /* tenta plano C */ }
+
+    // 3) Plano C: Pollinations via GET simples (texto puro)
+    const prompt = messages.map(m => m.role + ': ' + m.content).join('\n\n');
+    const r2 = await origFetch('https://text.pollinations.ai/' + encodeURIComponent(prompt.slice(0, 4000)));
+    if (!r2.ok) throw new Error('IA direta indisponível (status ' + r2.status + ')');
+    const text2 = (await r2.text()).trim();
+    if (!text2) throw new Error('IA direta devolveu resposta vazia');
+    return { text: text2, provider: 'pollinations-get' };
   };
 })();

@@ -274,6 +274,9 @@ async function askAI(text) {
         if (window.TermLogs) {
           window.TermLogs.add('IA', `IA direta também falhou: ${directErr.message}`, 'error');
         }
+        const e = new Error('Sem servidor conectado e a IA direta do navegador falhou (' + directErr.message + '). Verifique sua internet ou rode o servidor (node server.js) para o modo completo.');
+        e.isOffline = true;
+        throw e;
       }
     }
     if (window.TermLogs) {
