@@ -35,7 +35,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192x192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="stylesheet" href="css/style.css?v=2.3.1">
+<link rel="stylesheet" href="css/style.css?v=2.2.0">
 
 <!-- Schema.org JSON-LD Structured Data for Google -->
 <script type="application/ld+json">
@@ -876,6 +876,15 @@
       <option value="groq">Groq (Ultra-rápido Llama 3.3)</option>
       <option value="openrouter">OpenRouter (Multi-modelos)</option>
       <option value="ollama">Ollama (Localhost :11434)</option>
+      <option value="huggingface">Hugging Face (Router · Token Grátis)</option>
+      <option value="cerebras">Cerebras (Free Tier Veloz)</option>
+      <option value="sambanova">SambaNova (Free Tier 405B)</option>
+      <option value="together">Together AI (Modelos :free)</option>
+      <option value="nvidia">NVIDIA NIM (Créditos Grátis)</option>
+      <option value="mistral">Mistral (Free Tier)</option>
+      <option value="deepseek">DeepSeek (R1 / V3)</option>
+      <option value="qwen">Qwen (Coder 32B)</option>
+      <option value="custom">Custom (Ollama/LM Studio Local)</option>
     </select>
 
     <div style="margin-top:6px">
@@ -1306,7 +1315,7 @@
         <span data-icon="sparkles" data-icon-size="20" style="color:var(--accent-cyan)"></span>
         <div>
           <b style="font-size:14.5px;color:#fff">Configuração Avançada de Provedores & Modelos IA (+50 Modelos Integrados)</b>
-          <div style="font-size:11px;color:var(--text-muted)">NVIDIA NIM, OpenCode, Groq, OpenRouter, Gemini, DeepSeek, Claude, GPT-4o e Personalizados</div>
+          <div style="font-size:11px;color:var(--text-muted)">NVIDIA, Groq, OpenRouter, Gemini, DeepSeek, Claude, GPT-4o, HuggingFace, Cerebras, SambaNova, Together :free e Locais</div>
         </div>
       </div>
       <button class="btn btn-sm" onclick="closeModelsDrawer()">✕</button>
@@ -1328,6 +1337,15 @@
         <button type="button" class="btn btn-xs" onclick="quickSelectModel('opencode', 'opencode-zen-1')" style="font-size:10.5px;padding:4px 8px;background:rgba(147,51,234,0.15);border:1px solid #9333ea;color:#fff">⚡ OpenCode Zen-1</button>
         <button type="button" class="btn btn-xs" onclick="quickSelectModel('pollinations', 'openai')" style="font-size:10.5px;padding:4px 8px;background:rgba(52,211,153,0.15);border:1px solid #34d399;color:#fff">🌍 Pollinations Free</button>
       </div>
+    </div>
+
+    <!-- EXPLORADOR DE MODELOS AVANÇADO -->
+    <div style="background:var(--bg-darker);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--accent-cyan);display:flex;align-items:center;gap:6px"><span>🔬</span> Explorador de Modelos (clique para usar)</div>
+        <input id="modelExplorerSearch" class="ide-input-small" placeholder="🔎 Buscar modelo..." style="padding:4px 8px;max-width:180px" oninput="renderModelExplorer()">
+      </div>
+      <div id="modelExplorerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;max-height:230px;overflow-y:auto"></div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:12px">
@@ -1352,6 +1370,11 @@
           <option value="huggingface">🤗 HuggingFace Inference API (Open Source Models)</option>
           <option value="pollinations">🌍 Pollinations.ai (100% Free / Sem Chave)</option>
           <option value="custom">🛠️ Endpoint Personalizado (API Custom / Ollama Local)</option>
+          <option value="huggingface">🤗 HuggingFace Router (Token Grátis · Llama/Qwen/Mistral)</option>
+          <option value="cerebras">🧬 Cerebras (Free Tier · WSE Ultra Veloz)</option>
+          <option value="sambanova">🔥 SambaNova (Free Tier · Llama 405B)</option>
+          <option value="together">🤝 Together AI (Modelos :free)</option>
+          <option value="ollama">🏠 Ollama (Localhost :11434)</option>
         </select>
       </div>
 
@@ -1439,6 +1462,18 @@
             <span style="font-size:11px;font-weight:600;color:#fff">🤗 HuggingFace</span>
             <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
           </div>
+          <div class="health-card" id="hc-cerebras" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🧬 Cerebras Free Tier</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-sambanova" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🔥 SambaNova Free Tier</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-together" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🤝 Together :free</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
           <div class="health-card" id="hc-pollinations" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:11px;font-weight:600;color:#fff">🌍 Pollinations Free</span>
             <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
@@ -1468,22 +1503,21 @@
 <div id="gitCommitList" class="hidden"></div>
 
 <!-- Application Scripts with Cache-Busting Version Query -->
-<script src="js/offline.js"></script>
-  <script src="js/icons.js?v=2.3.1"></script>
-<script src="js/auth.js?v=2.3.1"></script>
-<script src="js/firebase-db.js?v=2.3.1"></script>
-<script src="js/devices.js?v=2.3.1"></script>
-<script src="js/integrations.js?v=2.3.1"></script>
-<script src="js/vfs.js?v=2.3.1"></script>
-<script src="js/editor.js?v=2.3.1"></script>
-<script src="js/terminal.js?v=2.3.1"></script>
-<script src="js/git.js?v=2.3.1"></script>
-<script src="js/agents.js?v=2.3.1"></script>
-<script src="js/gmaps.js?v=2.3.1"></script>
-<script src="js/gworkspace.js?v=2.3.1"></script>
-<script src="js/cloudsql.js?v=2.3.1"></script>
-<script src="js/voice.js?v=2.3.1"></script>
-<script src="js/logs.js?v=2.3.1"></script>
-<script src="js/app.js?v=2.3.1"></script>
+<script src="js/icons.js?v=2.2.0"></script>
+<script src="js/auth.js?v=2.2.0"></script>
+<script src="js/firebase-db.js?v=2.2.0"></script>
+<script src="js/devices.js?v=2.2.0"></script>
+<script src="js/integrations.js?v=2.2.0"></script>
+<script src="js/vfs.js?v=2.2.0"></script>
+<script src="js/editor.js?v=2.2.0"></script>
+<script src="js/terminal.js?v=2.2.0"></script>
+<script src="js/git.js?v=2.2.0"></script>
+<script src="js/agents.js?v=2.2.0"></script>
+<script src="js/gmaps.js?v=2.2.0"></script>
+<script src="js/gworkspace.js?v=2.2.0"></script>
+<script src="js/cloudsql.js?v=2.2.0"></script>
+<script src="js/voice.js?v=2.2.0"></script>
+<script src="js/logs.js?v=2.2.0"></script>
+<script src="js/app.js?v=2.2.0"></script>
 </body>
 </html>
