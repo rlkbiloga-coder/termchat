@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  termchat-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: termchat_applet
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    deploy:
+      resources:
+        limits:
+          cpus: '1.50'     # Strictly <= 1500m CPU limit to prevent Cloud Run deployment rejection
+          memory: 1024M
+        reservations:
+          cpus: '0.50'     # 500m baseline CPU request
+          memory: 512M
+      replicas: 2
