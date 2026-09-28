@@ -1305,32 +1305,53 @@
       <div style="display:flex;align-items:center;gap:8px">
         <span data-icon="sparkles" data-icon-size="20" style="color:var(--accent-cyan)"></span>
         <div>
-          <b style="font-size:14.5px;color:#fff">Configuração Avançada de Provedores & Modelos IA</b>
-          <div style="font-size:11px;color:var(--text-muted)">Gemini, Meta Llama, DeepSeek, Qwen, NVIDIA NIM, Claude, GPT-4o e Personalizado</div>
+          <b style="font-size:14.5px;color:#fff">Configuração Avançada de Provedores & Modelos IA (+50 Modelos Integrados)</b>
+          <div style="font-size:11px;color:var(--text-muted)">NVIDIA NIM, OpenCode, Groq, OpenRouter, Gemini, DeepSeek, Claude, GPT-4o e Personalizados</div>
         </div>
       </div>
       <button class="btn btn-sm" onclick="closeModelsDrawer()">✕</button>
     </div>
 
+    <!-- Quick Preset Suggestions Chips -->
+    <div style="background:var(--bg-darker);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:4px">
+      <div style="font-size:11px;font-weight:700;color:var(--accent-cyan);margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <span>⚡</span> Sugestões Rápidas de Modelos de Ponta (Clique para Selecionar Instantaneamente):
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('nvidia', 'nvidia/llama-3.1-nemotron-70b-instruct')" style="font-size:10.5px;padding:4px 8px;background:rgba(118,185,0,0.15);border:1px solid #76b900;color:#fff">💚 NVIDIA Nemotron 70B</button>
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('groq', 'llama-3.3-70b-versatile')" style="font-size:10.5px;padding:4px 8px;background:rgba(245,80,54,0.15);border:1px solid #f55036;color:#fff">⚡ Groq Llama 3.3 70B</button>
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('deepseek', 'deepseek/deepseek-r1')" style="font-size:10.5px;padding:4px 8px;background:rgba(0,180,216,0.15);border:1px solid #00b4d8;color:#fff">🧠 DeepSeek R1 Reasoning</button>
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('gemini', 'gemini-3.8-flash')" style="font-size:10.5px;padding:4px 8px;background:rgba(66,133,244,0.15);border:1px solid #4285f4;color:#fff">✨ Gemini 3.8 Flash</button>
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('qwen', 'qwen/qwen-2.5-coder-32b-instruct')" style="font-size:10.5px;padding:4px 8px;background:rgba(255,106,0,0.15);border:1px solid #ff6a00;color:#fff">🌐 Qwen 2.5 Coder 32B</button>
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('anthropic', 'claude-3-5-sonnet-latest')" style="font-size:10.5px;padding:4px 8px;background:rgba(217,119,6,0.15);border:1px solid #d97706;color:#fff">🎭 Claude 3.5 Sonnet</button>
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('openai', 'gpt-4o')" style="font-size:10.5px;padding:4px 8px;background:rgba(16,163,127,0.15);border:1px solid #10a37f;color:#fff">🤖 OpenAI GPT-4o</button>
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('opencode', 'opencode-zen-1')" style="font-size:10.5px;padding:4px 8px;background:rgba(147,51,234,0.15);border:1px solid #9333ea;color:#fff">⚡ OpenCode Zen-1</button>
+        <button type="button" class="btn btn-xs" onclick="quickSelectModel('pollinations', 'openai')" style="font-size:10.5px;padding:4px 8px;background:rgba(52,211,153,0.15);border:1px solid #34d399;color:#fff">🌍 Pollinations Free</button>
+      </div>
+    </div>
+
     <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;flex-direction:column;gap:4px">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Provedor de IA:</label>
+          <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Provedor de IA Ativo:</label>
           <span id="providerKeyStatusBadge" style="font-size:10px;color:var(--accent-teal)">🔑 Chave persistida no browser</span>
         </div>
         <select id="cfgProvider" class="ide-input-small" onchange="onProviderSelectChanged(this.value)" style="padding:6px;background:var(--bg-panel);color:#fff">
           <option value="auto">⚡ Auto-Routing Inteligente (Cascata com Fallback)</option>
-          <option value="gemini">✨ Google Gemini (Oficial AI Studio)</option>
-          <option value="meta">🦙 Meta Llama (Llama 3.3 70B / 8B)</option>
-          <option value="deepseek">🧠 DeepSeek AI (DeepSeek-R1 & V3)</option>
-          <option value="qwen">🌐 Alibaba Qwen (2.5 Coder 32B)</option>
-          <option value="nvidia">💚 NVIDIA NIM (Llama 3.1 Nemotron / 3.3)</option>
-          <option value="anthropic">🎭 Anthropic Claude (3.5 Sonnet)</option>
-          <option value="openai">🤖 OpenAI (GPT-4o / Mini)</option>
-          <option value="mistral">🌪️ Mistral AI (Codestral / Large)</option>
-          <option value="huggingface">🤗 HuggingFace Inference API</option>
+          <option value="nvidia">💚 NVIDIA NIM (Nemotron 70B / 340B / DeepSeek / Llama 3.3)</option>
+          <option value="gemini">✨ Google Gemini / AI Studio (3.8 Flash, 3.1 Pro, 2.5 Flash/Pro)</option>
+          <option value="groq">⚡ Groq LPU (Llama 3.3 70B Versatile ~800 tok/s)</option>
+          <option value="openrouter">📡 OpenRouter Unified API (Multi-Modelos Globais)</option>
+          <option value="opencode">⚡ OpenCode / Zen (Modelos de Código Direto Free)</option>
+          <option value="deepseek">🧠 DeepSeek AI (DeepSeek-R1 Reasoning & V3 Chat)</option>
+          <option value="meta">🦙 Meta Llama (Llama 3.3 70B / 405B / 3.1 / 3.2)</option>
+          <option value="qwen">🌐 Alibaba Qwen (2.5 Coder 32B / 72B / Turbo)</option>
+          <option value="anthropic">🎭 Anthropic Claude (3.5 Sonnet / 3.7 Sonnet / Haiku)</option>
+          <option value="openai">🤖 OpenAI (GPT-4o / O3-Mini / GPT-4.5 Preview)</option>
+          <option value="mistral">🌪️ Mistral AI (Codestral / Mistral Large 2)</option>
+          <option value="huggingface">🤗 HuggingFace Inference API (Open Source Models)</option>
           <option value="pollinations">🌍 Pollinations.ai (100% Free / Sem Chave)</option>
-          <option value="custom">🛠️ Endpoint Personalizado (API Custom / Local)</option>
+          <option value="custom">🛠️ Endpoint Personalizado (API Custom / Ollama Local)</option>
         </select>
       </div>
 
@@ -1340,10 +1361,14 @@
       </div>
 
       <div style="display:flex;flex-direction:column;gap:4px">
-        <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Modelo Específico:</label>
-        <select id="cfgModel" class="ide-input-small" style="padding:6px;background:var(--bg-panel);color:#fff">
-          <option value="gemini-3.8-flash">gemini-3.8-flash (Padrão Recomendado)</option>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Modelo Específico (Preset ou Personalizado):</label>
+          <span style="font-size:10px;color:var(--accent-teal)">Totalmente customizável</span>
+        </div>
+        <select id="cfgModel" class="ide-input-small" style="padding:6px;background:var(--bg-panel);color:#fff" onchange="if(this.value){document.getElementById('cfgCustomModelInput').value=this.value}">
+          <option value="gemini-3.8-flash">gemini-3.8-flash (Padrão AI Studio)</option>
         </select>
+        <input class="ide-input-small" id="cfgCustomModelInput" placeholder="Ou digite o ID customizado do modelo (ex: gemini-2.5-flash, opencode-zen-1, etc.)..." style="padding:6px;margin-top:2px">
       </div>
 
       <div style="display:flex;flex-direction:column;gap:4px">
@@ -1367,27 +1392,59 @@
 
         <div id="providerHealthGrid" style="display:grid;grid-template-columns:repeat(2, 1fr);gap:6px">
           <div class="health-card" id="hc-gemini" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;font-weight:600;color:#fff">✨ Gemini</span>
-            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
-          </div>
-          <div class="health-card" id="hc-meta" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;font-weight:600;color:#fff">🦙 Meta Llama</span>
-            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
-          </div>
-          <div class="health-card" id="hc-deepseek" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;font-weight:600;color:#fff">🧠 DeepSeek AI</span>
-            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
-          </div>
-          <div class="health-card" id="hc-qwen" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;font-weight:600;color:#fff">🌐 Alibaba Qwen</span>
+            <span style="font-size:11px;font-weight:600;color:#fff">✨ Gemini (AI Studio)</span>
             <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
           </div>
           <div class="health-card" id="hc-nvidia" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:11px;font-weight:600;color:#fff">💚 NVIDIA NIM</span>
             <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
           </div>
+          <div class="health-card" id="hc-groq" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">⚡ Groq LPU</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-openrouter" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">📡 OpenRouter</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-opencode" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">⚡ OpenCode / Zen</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-deepseek" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🧠 DeepSeek AI</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-meta" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🦙 Meta Llama</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-qwen" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🌐 Alibaba Qwen</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-anthropic" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🎭 Anthropic Claude</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-openai" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🤖 OpenAI</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-mistral" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🌪️ Mistral AI</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-huggingface" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🤗 HuggingFace</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
           <div class="health-card" id="hc-pollinations" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:11px;font-weight:600;color:#fff">🌍 Pollinations Free</span>
+            <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
+          </div>
+          <div class="health-card" id="hc-custom" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:600;color:#fff">🛠️ Custom Endpoint</span>
             <span class="hc-badge" style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,0.08);color:var(--text-dim)">🟡 Pendente</span>
           </div>
         </div>

@@ -23,11 +23,19 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:8080,h
 const ALLOWED_TARGETS = {
   pollinations: 'https://text.pollinations.ai/openai',
   zen: 'https://opencode.ai/zen/v1/chat/completions',
+  opencode: 'https://opencode.ai/zen/v1/chat/completions',
   groq: 'https://api.groq.com/openai/v1/chat/completions',
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
   nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions',
   huggingface: 'https://api-inference.huggingface.co/v1/chat/completions',
   together: 'https://api.together.xyz/v1/chat/completions',
+  meta: 'https://openrouter.ai/api/v1/chat/completions',
+  deepseek: 'https://api.deepseek.com/v1/chat/completions',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+  anthropic: 'https://api.anthropic.com/v1/messages',
+  openai: 'https://api.openai.com/v1/chat/completions',
+  mistral: 'https://api.mistral.ai/v1/chat/completions',
+  ollama: 'http://localhost:11434/v1/chat/completions'
 };
 
 app.use(cors({
@@ -271,7 +279,92 @@ app.get('/api/plugins', (req, res) => {
   }
 });
 
-// Helper: Call Gemini using official SDK
+// Helper: Fetch with Exponential Backoff, Jitter and Per-Attempt Timeout for 429 / 503 / 502 / 504 errors
+async function fetchWithRetry(url, options = {}, maxRetries = 3, initialDelayMs = 1000, timeoutMs = 45000) {
+  let attempt = 0;
+  let delay = initialDelayMs;
+
+  const externalSignal = options.signal;
+  // Remove signal from base options so we can inject per-attempt AbortControllers
+  const { signal: _ignore, ...baseOptions } = options;
+
+  while (true) {
+    attempt++;
+
+    // Check if client aborted the request
+    if (externalSignal && externalSignal.aborted) {
+      throw new Error('Operação cancelada pelo cliente');
+    }
+
+    // Per-attempt timeout controller
+    const attemptController = new AbortController();
+    let isTimeout = false;
+    const timeoutId = setTimeout(() => {
+      isTimeout = true;
+      attemptController.abort();
+    }, timeoutMs);
+
+    const onExternalAbort = () => attemptController.abort();
+    if (externalSignal) {
+      externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+    }
+
+    try {
+      const resp = await fetch(url, {
+        ...baseOptions,
+        signal: attemptController.signal
+      });
+
+      clearTimeout(timeoutId);
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', onExternalAbort);
+      }
+      
+      // Retry on Rate Limit (429) or Server Overload / Gateway Errors (502, 503, 504)
+      if ((resp.status === 429 || resp.status === 502 || resp.status === 503 || resp.status === 504) && attempt <= maxRetries) {
+        const retryAfter = resp.headers.get('retry-after');
+        let waitMs = delay;
+        if (retryAfter) {
+          const parsed = parseInt(retryAfter, 10);
+          if (!isNaN(parsed)) waitMs = parsed * 1000;
+        }
+        const jitter = (Math.random() * 0.4 - 0.2) * waitMs;
+        const totalWait = Math.max(300, Math.round(waitMs + jitter));
+
+        console.warn(`[Exponential Backoff] Retry ${attempt}/${maxRetries} for ${url} due to HTTP ${resp.status}. Waiting ${totalWait}ms...`);
+        await new Promise(resolve => setTimeout(resolve, totalWait));
+        delay *= 2;
+        continue;
+      }
+      return resp;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', onExternalAbort);
+      }
+
+      // If client aborted, don't retry
+      if (externalSignal && externalSignal.aborted) {
+        throw new Error('Operação cancelada pelo cliente');
+      }
+
+      const isNetworkOrTimeout = isTimeout || err.name === 'AbortError' || err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || (err.message && err.message.includes('fetch failed'));
+
+      if (attempt <= maxRetries && isNetworkOrTimeout) {
+        const jitter = (Math.random() * 0.4 - 0.2) * delay;
+        const totalWait = Math.max(300, Math.round(delay + jitter));
+        const reason = isTimeout ? `Timeout de ${timeoutMs / 1000}s` : err.message;
+        console.warn(`[Exponential Backoff] Retry ${attempt}/${maxRetries} for network/timeout (${reason}). Waiting ${totalWait}ms...`);
+        await new Promise(resolve => setTimeout(resolve, totalWait));
+        delay *= 2;
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+// Helper: Call Gemini using official SDK with exponential backoff on 429/503
 async function callGemini({ model = 'gemini-3.8-flash', messages, apiKey }) {
   const effectiveKey = apiKey || process.env.GEMINI_API_KEY;
   if (!effectiveKey) {
@@ -295,26 +388,45 @@ async function callGemini({ model = 'gemini-3.8-flash', messages, apiKey }) {
     }
   }
 
-  // Ensure at least one content
   if (contents.length === 0) {
     contents.push({ role: 'user', parts: [{ text: 'Olá' }] });
   }
 
-  const validModel = model && model.startsWith('gemini-') ? model : 'gemini-3.8-flash';
-  const response = await ai.models.generateContent({
-    model: validModel,
-    contents,
-    config: systemInstruction ? { systemInstruction } : undefined
-  });
+  const validModel = (model && typeof model === 'string' && model.trim()) ? model.trim() : 'gemini-3.8-flash';
 
-  const text = response.text;
-  if (!text) {
-    throw new Error('Resposta vazia recebida do Gemini');
+  let lastError;
+  let delay = 1000;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: validModel,
+        contents,
+        config: systemInstruction ? { systemInstruction } : undefined
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Resposta vazia recebida do Gemini');
+      }
+      return text;
+    } catch (err) {
+      lastError = err;
+      const errMsg = err.message || '';
+      if ((errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('503') || errMsg.includes('overloaded')) && attempt < 3) {
+        const jitter = (Math.random() * 0.4 - 0.2) * delay;
+        const waitMs = Math.max(300, Math.round(delay + jitter));
+        console.warn(`[Gemini Backoff] Tentativa ${attempt}/3 falhou com erro de cota/sobrecarga. Aguardando ${waitMs}ms...`);
+        await new Promise(r => setTimeout(r, waitMs));
+        delay *= 2;
+        continue;
+      }
+      throw err;
+    }
   }
-  return text;
+  throw lastError;
 }
 
-// Helper: Call upstream HTTP OpenAI-compatible endpoint
+// Helper: Call upstream HTTP OpenAI-compatible endpoint with Exponential Backoff
 async function callUpstream({ target, provider, model, messages, apiKey, customBaseUrl }) {
   let endpoint = target;
   if (provider === 'custom' && customBaseUrl) {
@@ -323,34 +435,48 @@ async function callUpstream({ target, provider, model, messages, apiKey, customB
 
   const body = { messages };
   if (model) body.model = model;
-  if (provider === 'nvidia') {
-    body.model = model || 'meta/llama-3.3-70b-instruct';
-    body.max_tokens = 1024;
-    body.temperature = 0.7;
+
+  // Groq & OpenRouter / Meta Llama 3.3 model handling
+  if (provider === 'groq') {
+    body.model = model || 'llama-3.3-70b-versatile';
+  } else if (provider === 'openrouter' || provider === 'meta') {
+    body.model = model || 'meta-llama/llama-3.3-70b-instruct';
   }
 
-  const envKey = process.env[`${provider.toUpperCase()}_API_KEY`];
+  if (provider === 'nvidia') {
+    body.model = model || 'nvidia/llama-3.1-nemotron-70b-instruct';
+    body.max_tokens = 4096;
+    body.temperature = 0.6;
+    body.top_p = 0.95;
+
+    // Check if model is NVIDIA Nemotron reasoning variant
+    if (model && (model.includes('reasoning') || model.includes('nemotron-3'))) {
+      body.reasoning_budget = 4096;
+    }
+  }
+
+  const envKey = process.env[`${provider.toUpperCase()}_API_KEY`] || (provider === 'meta' ? process.env.OPENROUTER_API_KEY : undefined);
   const headers = { 'Content-Type': 'application/json' };
+
+  if (provider === 'openrouter' || provider === 'meta') {
+    headers['HTTP-Referer'] = 'https://termchat.dev';
+    headers['X-Title'] = 'TermChat Web IDE';
+  }
 
   const key = apiKey || envKey;
   if (key) {
     headers['Authorization'] = `Bearer ${key}`;
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-  const upstreamResp = await fetch(endpoint, {
+  const upstreamResp = await fetchWithRetry(endpoint, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body),
-    signal: controller.signal,
-  });
-  clearTimeout(timeoutId);
+    body: JSON.stringify(body)
+  }, 3, 1000, 60000);
 
   if (!upstreamResp.ok) {
     const errText = await upstreamResp.text().catch(() => '');
-    throw new Error(`Upstream ${provider} status ${upstreamResp.status}: ${errText.slice(0, 100)}`);
+    throw new Error(`Upstream ${provider} status ${upstreamResp.status}: ${errText.slice(0, 150)}`);
   }
 
   const data = await upstreamResp.json();

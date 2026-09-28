@@ -205,7 +205,51 @@ function calc(expr) {
   const v = st[0]; return (st.length === 1 && isFinite(v)) ? Math.round(v * 1e10) / 1e10 : null;
 }
 
-// Unified askAI calling backend proxy
+// Helper: Exponential Backoff for client-side API requests on 429/502/503/504 errors
+async function fetchWithExponentialBackoff(url, options, maxRetries = 3, initialDelayMs = 1000) {
+  let attempt = 0;
+  let delay = initialDelayMs;
+
+  while (true) {
+    attempt++;
+    try {
+      const res = await fetch(url, options);
+      if ((res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) && attempt <= maxRetries) {
+        const retryAfter = res.headers.get('retry-after');
+        let waitMs = delay;
+        if (retryAfter) {
+          const parsed = parseInt(retryAfter, 10);
+          if (!isNaN(parsed)) waitMs = parsed * 1000;
+        }
+        const jitter = (Math.random() * 0.4 - 0.2) * waitMs;
+        const totalWait = Math.max(300, Math.round(waitMs + jitter));
+
+        if (window.TermLogs) {
+          window.TermLogs.add('IA', `⚠️ Servidor sobrecarregado (${res.status}). Retentando ${attempt}/${maxRetries} em ${(totalWait/1000).toFixed(1)}s...`, 'warn');
+        }
+        await new Promise(resolve => setTimeout(resolve, totalWait));
+        delay *= 2;
+        continue;
+      }
+      return res;
+    } catch (err) {
+      if (attempt <= maxRetries) {
+        const jitter = (Math.random() * 0.4 - 0.2) * delay;
+        const totalWait = Math.max(300, Math.round(delay + jitter));
+        if (window.TermLogs) {
+          window.TermLogs.add('IA', `⚠️ Erro de conexão (${err.message}). Retentando ${attempt}/${maxRetries} em ${(totalWait/1000).toFixed(1)}s...`, 'warn');
+        }
+        await new Promise(resolve => setTimeout(resolve, totalWait));
+        delay *= 2;
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+window.fetchWithExponentialBackoff = fetchWithExponentialBackoff;
+
+// Unified askAI calling backend proxy with automated exponential backoff
 async function askAI(text) {
   const SYS = 'Você é o TermChat, uma plataforma avançada de desenvolvimento assistido por IA e IDE terminal. Responda em português com clareza, objetividade e foco técnico.';
   const msgs = [{ role: 'system', content: SYS }, ...history.slice(-8), { role: 'user', content: text }];
@@ -217,7 +261,7 @@ async function askAI(text) {
   }
 
   try {
-    const res = await fetch('/api/chat', {
+    const res = await fetchWithExponentialBackoff('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -227,7 +271,7 @@ async function askAI(text) {
         apiKey: currentKey,
         customBaseUrl: cfg.customBaseUrl || ''
       })
-    });
+    }, 3, 1000);
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -2371,56 +2415,102 @@ async function suggestGitCommit() {
 // SETTINGS, CONFIG & EXPORT
 // ═════════════════════════════════════════════════════════════════
 const PROVIDER_MODELS_MAP = {
+  nvidia: [
+    { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: '💚 NVIDIA Nemotron 70B Instruct (Alta Precisão)' },
+    { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', name: '💚 NVIDIA Nemotron 3 Nano Omni Reasoning' },
+    { id: 'nvidia/nemotron-4-340b-instruct', name: '💚 NVIDIA Nemotron 4 340B Instruct (Ultra Scale)' },
+    { id: 'meta/llama-3.3-70b-instruct', name: '💚 NVIDIA Llama 3.3 70B Instruct' },
+    { id: 'deepseek-ai/deepseek-r1', name: '💚 NVIDIA DeepSeek R1 Reasoning' },
+    { id: 'mistralai/mixtral-8x22b-instruct-v0.1', name: '💚 NVIDIA Mixtral 8x22B Instruct' },
+    { id: 'google/gemma-2-27b-it', name: '💚 NVIDIA Gemma 2 27B IT' }
+  ],
   gemini: [
-    { id: 'gemini-3.8-flash', name: 'gemini-3.8-flash (Padrão Recomendado)' },
-    { id: 'gemini-3.1-pro-preview', name: 'gemini-3.1-pro-preview (Avançado)' },
-    { id: 'gemini-3.1-flash-lite', name: 'gemini-3.1-flash-lite (Rápido)' },
-    { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash (Estável)' }
+    { id: 'gemini-3.8-flash', name: '✨ Gemini 3.8 Flash (Padrão AI Studio Turbo)' },
+    { id: 'gemini-3.1-pro-preview', name: '✨ Gemini 3.1 Pro Preview (Avançado Code & Multimodal)' },
+    { id: 'gemini-2.5-flash', name: '✨ Gemini 2.5 Flash (Ultrarrápido)' },
+    { id: 'gemini-2.5-pro', name: '✨ Gemini 2.5 Pro (Raciocínio Lógico Profundo)' },
+    { id: 'gemini-1.5-pro', name: '✨ Gemini 1.5 Pro (Janela de Contexto 2M)' },
+    { id: 'gemini-1.5-flash', name: '✨ Gemini 1.5 Flash (Estável Prod)' },
+    { id: 'gemini-flash-latest', name: '✨ Gemini Flash Latest (Atualizado)' }
+  ],
+  opencode: [
+    { id: 'opencode-zen-1', name: '⚡ OpenCode Zen 1 (Direct Code Free)' },
+    { id: 'qwen-2.5-coder-32b', name: '⚡ OpenCode Qwen 2.5 Coder 32B' },
+    { id: 'deepseek-r1-zen', name: '⚡ OpenCode DeepSeek R1 Zen' }
   ],
   meta: [
-    { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct' },
-    { id: 'meta-llama/llama-3.1-8b-instruct', name: 'Llama 3.1 8B Instruct' },
-    { id: 'meta-llama/llama-3.2-3b-instruct', name: 'Llama 3.2 3B Instruct' }
+    { id: 'meta-llama/llama-3.3-70b-instruct', name: '🦙 Meta Llama 3.3 70B Instruct (Top Performance)' },
+    { id: 'meta-llama/llama-3.1-405b-instruct', name: '🦙 Meta Llama 3.1 405B Instruct (Ultra Scale)' },
+    { id: 'meta-llama/llama-3.1-70b-instruct', name: '🦙 Meta Llama 3.1 70B Instruct' },
+    { id: 'meta-llama/llama-3.1-8b-instruct', name: '🦙 Meta Llama 3.1 8B Instruct (Super Fast)' },
+    { id: 'meta-llama/llama-3.2-3b-instruct', name: '🦙 Meta Llama 3.2 3B Instruct (Leve)' }
   ],
   deepseek: [
-    { id: 'deepseek/deepseek-r1', name: 'DeepSeek-R1 (Raciocínio Avançado)' },
-    { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat (V3)' }
+    { id: 'deepseek/deepseek-r1', name: '🧠 DeepSeek-R1 (Raciocínio Matemático e Código)' },
+    { id: 'deepseek/deepseek-chat', name: '🧠 DeepSeek V3 Chat (Model 671B)' },
+    { id: 'deepseek-coder', name: '🧠 DeepSeek Coder 33B (Especializado em Programação)' }
   ],
   qwen: [
-    { id: 'qwen/qwen-2.5-coder-32b-instruct', name: 'Qwen 2.5 Coder 32B (Especialista)' },
-    { id: 'qwen/qwen-2.5-72b-instruct', name: 'Qwen 2.5 72B Instruct' }
+    { id: 'qwen/qwen-2.5-coder-32b-instruct', name: '🌐 Qwen 2.5 Coder 32B Instruct (Líder em Código Open Source)' },
+    { id: 'qwen/qwen-2.5-72b-instruct', name: '🌐 Qwen 2.5 72B Instruct (Geral Avançado)' },
+    { id: 'qwen-turbo', name: '🌐 Qwen Turbo High Efficiency' }
   ],
-  nvidia: [
-    { id: 'meta/llama-3.3-70b-instruct', name: 'NVIDIA Llama 3.3 70B Instruct' },
-    { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'NVIDIA Nemotron 70B Instruct' }
+  groq: [
+    { id: 'llama-3.3-70b-versatile', name: '⚡ Groq Llama 3.3 70B Versatile (~800 tokens/s)' },
+    { id: 'llama-3.1-8b-instant', name: '⚡ Groq Llama 3.1 8B Instant (Instantâneo)' },
+    { id: 'mixtral-8x7b-32768', name: '⚡ Groq Mixtral 8x7B (32k Context)' },
+    { id: 'gemma2-9b-it', name: '⚡ Groq Gemma 2 9B IT' }
+  ],
+  openrouter: [
+    { id: 'google/gemini-2.5-pro-exp', name: '📡 OpenRouter Gemini 2.5 Pro Exp' },
+    { id: 'anthropic/claude-3.5-sonnet', name: '📡 OpenRouter Claude 3.5 Sonnet' },
+    { id: 'deepseek/deepseek-r1', name: '📡 OpenRouter DeepSeek R1' },
+    { id: 'meta-llama/llama-3.3-70b-instruct', name: '📡 OpenRouter Llama 3.3 70B' },
+    { id: 'mistralai/mistral-large-2407', name: '📡 OpenRouter Mistral Large 2407' }
   ],
   anthropic: [
-    { id: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet' },
-    { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku' }
+    { id: 'claude-3-5-sonnet-latest', name: '🎭 Claude 3.5 Sonnet (State-of-the-Art Coding)' },
+    { id: 'claude-3-7-sonnet', name: '🎭 Claude 3.7 Sonnet (Reasoning & Code)' },
+    { id: 'claude-3-5-haiku-latest', name: '🎭 Claude 3.5 Haiku (Ultrarrápido)' },
+    { id: 'claude-3-opus-20240229', name: '🎭 Claude 3 Opus' }
   ],
   openai: [
-    { id: 'gpt-4o', name: 'GPT-4o (OpenAI)' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' }
+    { id: 'gpt-4o', name: '🤖 GPT-4o (Omni Multimodal)' },
+    { id: 'gpt-4o-mini', name: '🤖 GPT-4o Mini (Eficiente)' },
+    { id: 'o3-mini', name: '🤖 OpenAI o3-mini (Raciocínio Técnico)' },
+    { id: 'gpt-4.5-preview', name: '🤖 GPT-4.5 Preview (Flagship)' }
   ],
   mistral: [
-    { id: 'codestral-latest', name: 'Codestral (Mistral Code)' },
-    { id: 'mistral-large-latest', name: 'Mistral Large' }
+    { id: 'codestral-latest', name: '🌪️ Codestral Latest (Especialista em Software)' },
+    { id: 'mistral-large-latest', name: '🌪️ Mistral Large 2 (Raciocínio Rápido)' },
+    { id: 'pixtral-12b-2409', name: '🌪️ Pixtral 12B Multimodal' }
   ],
   huggingface: [
-    { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'HuggingFace Qwen 2.5 Coder' },
-    { id: 'meta-llama/Llama-3.3-70B-Instruct', name: 'HuggingFace Llama 3.3 70B' }
+    { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: '🤗 HuggingFace Qwen 2.5 Coder 32B' },
+    { id: 'meta-llama/Llama-3.3-70B-Instruct', name: '🤗 HuggingFace Llama 3.3 70B' },
+    { id: 'bigcode/starcoder2-15b', name: '🤗 HuggingFace StarCoder2 15B' }
   ],
   pollinations: [
-    { id: 'openai', name: 'Pollinations OpenAI Free' },
-    { id: 'mistral', name: 'Pollinations Mistral Free' }
+    { id: 'openai', name: '🌍 Pollinations OpenAI Free (Sem API Key)' },
+    { id: 'mistral', name: '🌍 Pollinations Mistral Free (Sem API Key)' },
+    { id: 'searchgpt', name: '🌍 Pollinations SearchGPT Web Search Free' }
   ],
   custom: [
-    { id: 'custom-model', name: 'Modelo Personalizado / Local' }
+    { id: 'custom-model', name: '🛠️ Modelo Customizado / Servidor Local (Ollama/LM Studio)' }
   ],
   auto: [
-    { id: 'gemini-3.8-flash', name: 'Auto-Routing (Gemini -> Pollinations -> NVIDIA)' }
+    { id: 'gemini-3.8-flash', name: '⚡ Auto-Routing Inteligente (Cascata Fallback)' }
   ]
 };
+
+function quickSelectModel(provider, modelId) {
+  if ($('cfgProvider')) $('cfgProvider').value = provider;
+  onProviderSelectChanged(provider, modelId);
+  if ($('cfgModel')) $('cfgModel').value = modelId;
+  if ($('cfgCustomModelInput')) $('cfgCustomModelInput').value = modelId;
+  if ($('cfgMsg')) $('cfgMsg').textContent = `✓ [${provider.toUpperCase()}] / [${modelId}] selecionado! Clique em 'Salvar Alterações'.`;
+}
+window.quickSelectModel = quickSelectModel;
 
 function toggleModelsDrawer() {
   const modal = $('aiModelsModal');
@@ -2428,6 +2518,7 @@ function toggleModelsDrawer() {
     modal.classList.remove('hidden');
     if ($('cfgProvider')) $('cfgProvider').value = cfg.provider || 'auto';
     if ($('cfgCustomUrl')) $('cfgCustomUrl').value = cfg.customBaseUrl || '';
+    if ($('cfgCustomModelInput')) $('cfgCustomModelInput').value = cfg.model || '';
     onProviderSelectChanged(cfg.provider || 'auto', cfg.model);
   }
 }
@@ -2439,6 +2530,7 @@ function closeModelsDrawer() {
 
 function onProviderSelectChanged(provider, selectedModel) {
   const modelSelect = $('cfgModel');
+  const customModelInput = $('cfgCustomModelInput');
   const keyInput = $('cfgKey');
   const keyLabel = $('cfgKeyLabel');
   const statusBadge = $('providerKeyStatusBadge');
@@ -2451,9 +2543,13 @@ function onProviderSelectChanged(provider, selectedModel) {
   // Populate model options
   if (modelSelect) {
     const list = PROVIDER_MODELS_MAP[provider] || PROVIDER_MODELS_MAP.auto;
+    const isMatchingPreset = list.some(m => m.id === selectedModel);
     modelSelect.innerHTML = list.map(m => `<option value="${m.id}" ${selectedModel === m.id ? 'selected' : ''}>${m.name}</option>`).join('');
-    if (!selectedModel && list.length > 0) {
-      modelSelect.value = list[0].id;
+    
+    if (!isMatchingPreset && selectedModel && customModelInput) {
+      customModelInput.value = selectedModel;
+    } else if (isMatchingPreset && customModelInput && !customModelInput.value) {
+      customModelInput.value = selectedModel || list[0].id;
     }
   }
 
@@ -2465,12 +2561,15 @@ function onProviderSelectChanged(provider, selectedModel) {
 
   const providerNames = {
     gemini: 'Google Gemini',
+    opencode: 'OpenCode / Zen',
     meta: 'Meta Llama',
     deepseek: 'DeepSeek AI',
     qwen: 'Alibaba Qwen',
     nvidia: 'NVIDIA NIM',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI',
+    openrouter: 'OpenRouter',
+    groq: 'Groq LPU',
     mistral: 'Mistral AI',
     huggingface: 'HuggingFace',
     pollinations: 'Pollinations (Free)',
@@ -2487,7 +2586,7 @@ function onProviderSelectChanged(provider, selectedModel) {
     if (storedKey) {
       statusBadge.textContent = `🔑 Chave persistida para ${name}`;
       statusBadge.style.color = 'var(--accent-teal)';
-    } else if (provider === 'pollinations' || provider === 'auto') {
+    } else if (provider === 'pollinations' || provider === 'auto' || provider === 'opencode') {
       statusBadge.textContent = '⚡ Livre / Servidor Auto';
       statusBadge.style.color = 'var(--accent-cyan)';
     } else {
@@ -2517,19 +2616,22 @@ function onApiKeyInputChanged(val) {
 function saveModelsDrawer() {
   const provider = $('cfgProvider') ? $('cfgProvider').value : 'auto';
   const key = $('cfgKey') ? $('cfgKey').value.trim() : '';
-  const model = $('cfgModel') ? $('cfgModel').value.trim() : '';
+  const selectedModel = $('cfgModel') ? $('cfgModel').value.trim() : '';
+  const customModelInput = $('cfgCustomModelInput') ? $('cfgCustomModelInput').value.trim() : '';
   const customUrl = $('cfgCustomUrl') ? $('cfgCustomUrl').value.trim() : '';
+
+  const finalModel = customModelInput || selectedModel || 'gemini-3.8-flash';
 
   if (!cfg.providerKeys) cfg.providerKeys = {};
   cfg.providerKeys[provider] = key;
 
   cfg.provider = provider;
   cfg.key = key;
-  cfg.model = model;
+  cfg.model = finalModel;
   cfg.customBaseUrl = customUrl;
 
   store.set('cfg', cfg);
-  if ($('cfgMsg')) $('cfgMsg').textContent = `✓ Configurações da API [${provider.toUpperCase()}] salvas no localStorage!`;
+  if ($('cfgMsg')) $('cfgMsg').textContent = `✓ Provedor [${provider.toUpperCase()}] e Modelo [${finalModel}] salvos!`;
   updateModelBadge();
 
   if (window.TermFirebase) {
@@ -2539,9 +2641,17 @@ function saveModelsDrawer() {
 }
 
 function updateModelBadge() {
-  const badge = $('currentModelBadge');
-  if (badge) {
-    badge.textContent = `${cfg.provider || 'auto'}:${cfg.model || 'gemini'}`;
+  const prov = (cfg.provider || 'auto').toUpperCase();
+  const mdl = cfg.model || 'gemini-3.8-flash';
+
+  const topBadge = $('topModelName');
+  if (topBadge) {
+    topBadge.textContent = `${prov} • ${mdl}`;
+  }
+
+  const badgeOld = $('currentModelBadge');
+  if (badgeOld) {
+    badgeOld.textContent = `${prov}:${mdl}`;
   }
 }
 
@@ -2560,6 +2670,17 @@ function saveCfg() {
   }
 }
 
+function getActiveApiKey(provider) {
+  if (cfg.providerKeys && cfg.providerKeys[provider]) {
+    return cfg.providerKeys[provider];
+  }
+  if (cfg.provider === provider && cfg.key) {
+    return cfg.key;
+  }
+  return '';
+}
+window.getActiveApiKey = getActiveApiKey;
+
 async function checkProviderHealth(provider) {
   const card = $(`hc-${provider}`);
   const badge = card ? card.querySelector('.hc-badge') : null;
@@ -2571,6 +2692,8 @@ async function checkProviderHealth(provider) {
 
   const apiKey = getActiveApiKey(provider);
   const customBaseUrl = cfg.customBaseUrl || '';
+  const providerModels = PROVIDER_MODELS_MAP[provider] || [];
+  const model = (cfg.provider === provider && cfg.model) ? cfg.model : (providerModels[0] ? providerModels[0].id : '');
 
   try {
     const res = await fetch('/api/health-check', {
@@ -2578,6 +2701,7 @@ async function checkProviderHealth(provider) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         provider,
+        model,
         apiKey,
         customBaseUrl
       })
@@ -2586,16 +2710,19 @@ async function checkProviderHealth(provider) {
     const data = await res.json();
     if (data.ok) {
       if (badge) {
-        badge.textContent = `🟢 Válida (${data.latencyMs}ms)`;
+        const keyInfo = apiKey ? ' (Key OK)' : ' (Server/Free)';
+        badge.textContent = `🟢 Ativo${keyInfo} - ${data.latencyMs}ms`;
         badge.style.background = 'rgba(55,230,160,0.15)';
         badge.style.color = '#37e6a0';
       }
       return { ok: true, provider, latencyMs: data.latencyMs };
     } else {
       if (badge) {
-        badge.textContent = `🔴 Incorreta / Erro`;
+        const shortErr = (data.error || 'Erro').substring(0, 24);
+        badge.textContent = `🔴 ${shortErr}`;
         badge.style.background = 'rgba(255,107,107,0.15)';
         badge.style.color = '#ff6b6b';
+        badge.title = data.error || 'Erro de validação de chave ou endpoint';
       }
       return { ok: false, provider, error: data.error };
     }
@@ -2604,6 +2731,7 @@ async function checkProviderHealth(provider) {
       badge.textContent = `🔴 Erro de Rede`;
       badge.style.background = 'rgba(255,107,107,0.15)';
       badge.style.color = '#ff6b6b';
+      badge.title = err.message;
     }
     return { ok: false, provider, error: err.message };
   }
@@ -2615,19 +2743,26 @@ async function checkActiveProviderHealth() {
   
   const res = await checkProviderHealth(provider === 'auto' ? 'gemini' : provider);
   if (res && res.ok) {
-    if ($('cfgMsg')) $('cfgMsg').textContent = `🟢 API Key e Endpoint [${provider.toUpperCase()}] ativos (${res.latencyMs}ms) ✓`;
+    if ($('cfgMsg')) $('cfgMsg').textContent = `🟢 Provedor [${provider.toUpperCase()}] verificado com sucesso (${res.latencyMs}ms) ✓`;
   } else if (res) {
-    if ($('cfgMsg')) $('cfgMsg').textContent = `🔴 Falha na API [${provider.toUpperCase()}]: ${res.error || 'Erro desconhecido'}`;
+    if ($('cfgMsg')) $('cfgMsg').textContent = `🔴 Falha na verificação de [${provider.toUpperCase()}]: ${res.error || 'Erro de autenticação ou cota'}`;
   }
 }
 
 async function runAllHealthChecks() {
-  if ($('cfgMsg')) $('cfgMsg').textContent = 'Iniciando diagnóstico completo de todos os provedores...';
-  const providersToTest = ['gemini', 'meta', 'deepseek', 'qwen', 'nvidia', 'pollinations'];
+  if ($('cfgMsg')) $('cfgMsg').textContent = 'Diagnosticando todas as 14 APIs de Provedores em tempo real...';
+  const providersToTest = [
+    'gemini', 'nvidia', 'groq', 'openrouter', 'opencode', 'deepseek',
+    'meta', 'qwen', 'anthropic', 'openai', 'mistral', 'huggingface',
+    'pollinations', 'custom'
+  ];
   
-  await Promise.all(providersToTest.map(p => checkProviderHealth(p)));
+  const results = await Promise.all(providersToTest.map(p => checkProviderHealth(p)));
+  const successCount = results.filter(r => r && r.ok).length;
   
-  if ($('cfgMsg')) $('cfgMsg').textContent = 'Diagnóstico concluído! Verifique os indicadores abaixo. ✓';
+  if ($('cfgMsg')) {
+    $('cfgMsg').textContent = `✓ Diagnóstico concluído: ${successCount}/${providersToTest.length} provedores respondendo com sucesso!`;
+  }
 }
 
 window.checkProviderHealth = checkProviderHealth;
@@ -2827,6 +2962,36 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Firebase Firestore & Auth
   if (window.TermFirebase) {
     window.TermFirebase.init();
+  }
+
+  // Register Service Worker for PWA Offline Caching & Background Workspace Sync
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => {
+        if (window.TermLogs) {
+          window.TermLogs.add('PWA', 'ServiceWorker ativo ✓ Cache e sincronização offline habilitados.', 'info');
+        }
+
+        window.addEventListener('online', () => {
+          if ('sync' in reg) {
+            reg.sync.register('sync-workspace-data').catch(() => {});
+          }
+          if (window.TermVFS) {
+            window.TermVFS.syncOfflineQueue();
+          }
+        });
+      })
+      .catch(err => {
+        console.warn('ServiceWorker registration error:', err);
+      });
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'EVENT_ONLINE_SYNC') {
+        if (window.TermVFS) {
+          window.TermVFS.syncOfflineQueue();
+        }
+      }
+    });
   }
 
   // Initialize Device Detection (PC vs Mobile)

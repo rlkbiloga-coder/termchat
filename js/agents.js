@@ -318,8 +318,10 @@ btn.addEventListener('click', () => {
   async callAI(messages) {
     const cfg = window.cfg || {};
     const apiKey = typeof window.getActiveApiKey === 'function' ? window.getActiveApiKey(cfg.provider) : (cfg.key || '');
+    const fetchFn = typeof window.fetchWithExponentialBackoff === 'function' ? window.fetchWithExponentialBackoff : fetch;
+
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetchFn('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -329,7 +331,7 @@ btn.addEventListener('click', () => {
           apiKey,
           customBaseUrl: cfg.customBaseUrl || ''
         })
-      });
+      }, 3, 1000);
 
       const rawText = await res.text();
       let data = {};

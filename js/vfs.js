@@ -14,6 +14,15 @@ class TermVFS {
   }
 
   init() {
+    window.addEventListener('online', () => {
+      this.syncOfflineQueue();
+    });
+    window.addEventListener('offline', () => {
+      if (window.TermLogs) {
+        window.TermLogs.add('VFS', '⚡ Modo Offline Ativo: Edições no VFS mantidas localmente.', 'warn');
+      }
+    });
+
     const all = this.getAllWorkspaces();
     if (!all['default']) {
       all['default'] = {
@@ -273,6 +282,77 @@ Você pode:
     this.notify('workspace_deleted', { id });
   }
 
+  // --- Offline Sync Queue Methods ---
+  getOfflineSyncQueue() {
+    try {
+      const raw = localStorage.getItem('tc_offline_sync_queue');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveOfflineSyncQueue(queue) {
+    try {
+      localStorage.setItem('tc_offline_sync_queue', JSON.stringify(queue));
+    } catch (e) {}
+  }
+
+  enqueueOfflineSync(action) {
+    const queue = this.getOfflineSyncQueue();
+    const filtered = queue.filter(item => item.path !== action.path);
+    filtered.push(action);
+    this.saveOfflineSyncQueue(filtered);
+
+    if (navigator.serviceWorker && navigator.serviceWorker.controller && action.type === 'write') {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'CACHE_VFS_FILE',
+        path: action.path,
+        content: action.content
+      });
+    }
+  }
+
+  async syncOfflineQueue() {
+    const queue = this.getOfflineSyncQueue();
+    if (!queue.length) return;
+
+    if (!navigator.onLine) {
+      if (window.TermLogs) {
+        window.TermLogs.add('VFS', `Modo offline: ${queue.length} alteração(ões) no VFS salvas no cache local.`, 'info');
+      }
+      return;
+    }
+
+    if (window.TermLogs) {
+      window.TermLogs.add('VFS', `🟢 Conexão restabelecida: Sincronizando ${queue.length} arquivo(s) pendente(s) com a nuvem...`, 'info');
+    }
+
+    const remaining = [];
+    for (const item of queue) {
+      try {
+        if (item.type === 'write') {
+          if (window.TermFirebase) {
+            await window.TermFirebase.saveWorkspaceFile(item.path, item.content, item.ext || 'javascript');
+          }
+        }
+      } catch (err) {
+        console.warn('Sync failed for item:', item, err);
+        remaining.push(item);
+      }
+    }
+
+    this.saveOfflineSyncQueue(remaining);
+
+    if (remaining.length === 0) {
+      if (window.TermLogs) {
+        window.TermLogs.add('VFS', '✓ Todos os arquivos do workspace foram sincronizados na nuvem!', 'success');
+      }
+    } else if (window.TermLogs) {
+      window.TermLogs.add('VFS', `⚠️ ${remaining.length} arquivo(s) permanecem na fila de sincronização.`, 'warn');
+    }
+  }
+
   // --- File CRUD ---
   getFile(path) {
     const ws = this.getCurrentWorkspace();
@@ -298,6 +378,23 @@ Você pode:
     const all = this.getAllWorkspaces();
     all[ws.id] = ws;
     this.saveAllWorkspaces(all);
+
+    // Queue sync for online restore or direct sync to Firebase
+    const syncAction = {
+      type: 'write',
+      path: cleanPath,
+      content: content,
+      ext: ext,
+      timestamp: Date.now()
+    };
+
+    if (navigator.onLine && window.TermFirebase) {
+      window.TermFirebase.saveWorkspaceFile(cleanPath, content, ext).catch(() => {
+        this.enqueueOfflineSync(syncAction);
+      });
+    } else {
+      this.enqueueOfflineSync(syncAction);
+    }
 
     this.notify(isNew ? 'file_created' : 'file_updated', { path: cleanPath, content, author });
     return ws.files[cleanPath];
