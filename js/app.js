@@ -259,6 +259,23 @@ async function askAI(text) {
 
     return { text: data.text, provider: data.provider };
   } catch (err) {
+    // Sem backend: IA direta do navegador (Gemini com chave própria, senão Pollinations)
+    if (window.directAIChat) {
+      try {
+        if (window.TermLogs) {
+          window.TermLogs.add('IA', 'Backend indisponível, usando IA direta do navegador...', 'info');
+        }
+        const direct = await window.directAIChat(msgs);
+        if (window.TermLogs) {
+          window.TermLogs.add('IA', `Resposta via [${direct.provider}] (IA direta)`, 'success');
+        }
+        return { text: direct.text, provider: direct.provider };
+      } catch (directErr) {
+        if (window.TermLogs) {
+          window.TermLogs.add('IA', `IA direta também falhou: ${directErr.message}`, 'error');
+        }
+      }
+    }
     if (window.TermLogs) {
       window.TermLogs.add('IA', `Falha no provedor: ${err.message}`, 'error');
     }
