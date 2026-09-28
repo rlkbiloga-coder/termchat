@@ -30,13 +30,6 @@ const cfg = Object.assign({
 if (!cfg.providerKeys) cfg.providerKeys = {};
 window.cfg = cfg;
 
-function getActiveApiKey(providerId) {
-  const p = providerId || cfg.provider || 'auto';
-  if (cfg.providerKeys && cfg.providerKeys[p]) {
-    return cfg.providerKeys[p];
-  }
-  return cfg.key || '';
-}
 window.getActiveApiKey = getActiveApiKey;
 
 // Permissions manager
@@ -1929,49 +1922,12 @@ window.addEventListener('keydown', e => {
 // ═════════════════════════════════════════════════════════════════
 // MODELS DRAWER & THEME & MOBILE
 // ═════════════════════════════════════════════════════════════════
-function toggleModelsDrawer() {
-  const drawer = $('modelsDrawer');
-  if (drawer) drawer.classList.toggle('open');
-}
-
-function onProviderSelectChanged(val) {
-  cfg.provider = val;
-  store.set('cfg', cfg);
-  updateModelBadge();
-}
-
 function setQuickProvider(val) {
   cfg.provider = val;
   if ($('cfgProvider')) $('cfgProvider').value = val;
   store.set('cfg', cfg);
   updateModelBadge();
   alert(`Provedor alterado para: [${val.toUpperCase()}]`);
-}
-
-function updateModelBadge() {
-  const label = $('topModelName');
-  const inputLabel = $('agentInputModelLabel');
-  const names = {
-    auto: 'Auto • Cascata Fallback',
-    gemini: 'Google Gemini • gemini-3.8-flash',
-    zen: 'OpenCode • Gemini 2.5 Pro',
-    pollinations: 'Pollinations • 100% Free',
-    groq: 'Groq • Llama 3.3 70B',
-    openrouter: 'OpenRouter • Multi-model',
-    ollama: 'Ollama • Localhost',
-    cerebras: 'Cerebras • Free Tier Veloz',
-    sambanova: 'SambaNova • Llama 405B',
-    together: 'Together • Modelos :free',
-    huggingface: 'HuggingFace • Router Grátis',
-    nvidia: 'NVIDIA NIM • Nemotron',
-    deepseek: 'DeepSeek • R1/V3',
-    mistral: 'Mistral • Codestral',
-    qwen: 'Qwen • Coder 32B',
-    custom: 'Custom • Ollama/LM Studio'
-  };
-  const str = names[cfg.provider] || cfg.provider;
-  if (label) label.textContent = str;
-  if (inputLabel) inputLabel.textContent = str;
 }
 
 function toggleTheme() {
@@ -2727,18 +2683,35 @@ function saveModelsDrawer() {
 }
 
 function updateModelBadge() {
-  const prov = (cfg.provider || 'auto').toUpperCase();
   const mdl = cfg.model || 'gemini-3.8-flash';
-
+  const names = {
+    auto: 'Auto • Cascata Fallback',
+    gemini: 'Google Gemini • ' + mdl,
+    zen: 'OpenCode • Zen Free',
+    pollinations: 'Pollinations • 100% Free',
+    groq: 'Groq • ' + mdl,
+    openrouter: 'OpenRouter • ' + mdl,
+    ollama: 'Ollama • Localhost',
+    cerebras: 'Cerebras • Free Tier Veloz',
+    sambanova: 'SambaNova • Llama 405B',
+    together: 'Together • Modelos :free',
+    huggingface: 'HuggingFace • Router Grátis',
+    nvidia: 'NVIDIA NIM • ' + mdl,
+    deepseek: 'DeepSeek • ' + mdl,
+    mistral: 'Mistral • ' + mdl,
+    qwen: 'Qwen • ' + mdl,
+    meta: 'Meta Llama • ' + mdl,
+    anthropic: 'Claude • ' + mdl,
+    openai: 'OpenAI • ' + mdl,
+    custom: 'Custom • Ollama/LM Studio'
+  };
+  const label = names[cfg.provider] || ((cfg.provider || 'auto').toUpperCase() + ' • ' + mdl);
+  const inputLabel = $('agentInputModelLabel');
   const topBadge = $('topModelName');
-  if (topBadge) {
-    topBadge.textContent = `${prov} • ${mdl}`;
-  }
-
+  if (topBadge) topBadge.textContent = label;
+  if (inputLabel) inputLabel.textContent = label;
   const badgeOld = $('currentModelBadge');
-  if (badgeOld) {
-    badgeOld.textContent = `${prov}:${mdl}`;
-  }
+  if (badgeOld) badgeOld.textContent = `${(cfg.provider || 'auto').toUpperCase()}:${mdl}`;
 }
 
 window.onApiKeyInputChanged = onApiKeyInputChanged;
