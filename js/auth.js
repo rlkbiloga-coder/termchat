@@ -269,61 +269,153 @@
     if (modal) modal.classList.add('hidden');
   };
 
-  function renderMobilePermissions() {
+  const MOBILE_PERMS = [
+    { id: 'microphone', name: 'Microfone', icon: 'mic', desc: 'Comandos por voz e transcrição em tempo real', supported: () => Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) },
+    { id: 'camera', name: 'Câmera', icon: 'camera', desc: 'Captura de imagens e leitura de referências', supported: () => Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) },
+    { id: 'geolocation', name: 'Localização GPS', icon: 'gmaps', desc: 'Previsão do tempo e centralização no Google Maps', supported: () => Boolean(navigator.geolocation) },
+    { id: 'notifications', name: 'Notificações Push', icon: 'bell', desc: 'Alertas de build, testes e conclusão de tarefas', supported: () => Boolean(window.Notification) },
+    { id: 'clipboard', name: 'Área de Transferência', icon: 'copy', desc: 'Copiar e colar trechos de código e logs', supported: () => Boolean(navigator.clipboard && navigator.clipboard.writeText) },
+    { id: 'bluetooth', name: 'Web Bluetooth', icon: 'cpu', desc: 'Conexão com periféricos e dispositivos externos', supported: () => Boolean(navigator.bluetooth) },
+    { id: 'serial', name: 'Web Serial / USB', icon: 'zap', desc: 'Comunicação serial com hardware de desenvolvimento', supported: () => Boolean(navigator.serial) }
+  ];
+
+  async function getPermStatus(id) {
+    const perm = MOBILE_PERMS.find(p => p.id === id);
+    if (!perm || !perm.supported()) return 'unsupported';
+    try {
+      if (id === 'notifications') return Notification.permission;
+      if (id === 'microphone' || id === 'camera') {
+        try {
+          const s = await navigator.permissions.query({ name: id });
+          return s.state;
+        } catch (e) {
+          return 'prompt';
+        }
+      }
+      if (id === 'geolocation') {
+        try {
+          const s = await navigator.permissions.query({ name: 'geolocation' });
+          return s.state;
+        } catch (e) {
+          return 'prompt';
+        }
+      }
+      return 'prompt';
+    } catch (e) {
+      return 'prompt';
+    }
+  }
+
+  async function renderMobilePermissions() {
     const list = document.getElementById('mobilePermsList');
     if (!list) return;
 
-    const perms = [
-      { id: 'microphone', name: 'Microfone', icon: 'mic', desc: 'Comandos por voz e transcrição em tempo real' },
-      { id: 'camera', name: 'Câmera', icon: 'camera', desc: 'Captura de imagens e leitura de referências' },
-      { id: 'geolocation', name: 'Localização GPS', icon: 'gmaps', desc: 'Previsão do tempo e centralização no Google Maps' },
-      { id: 'notifications', name: 'Notificações Push', icon: 'bell', desc: 'Alertas de build, testes e conclusão de tarefas' },
-      { id: 'clipboard', name: 'Área de Transferência', icon: 'copy', desc: 'Copiar e colar trechos de código e logs' },
-      { id: 'bluetooth', name: 'Web Bluetooth', icon: 'cpu', desc: 'Conexão com periféricos e dispositivos externos' },
-      { id: 'serial', name: 'Web Serial / USB', icon: 'zap', desc: 'Comunicação serial com hardware de desenvolvimento' }
-    ];
-
-    list.innerHTML = perms.map(p => {
+    const rows = await Promise.all(MOBILE_PERMS.map(async p => {
+      const st = await getPermStatus(p.id);
       const iconHtml = window.TermIcons ? window.TermIcons.get(p.icon, 20) : '';
+      let action;
+      if (st === 'granted') {
+        action = '<span style="color:#37e6a0;font-size:12px;white-space:nowrap">✓ Permitido</span>';
+      } else if (st === 'denied') {
+        action = '<span style="color:#ff6b6b;font-size:11px;max-width:110px;text-align:right">✗ Bloqueado\n(libere nas config. do navegador)</span>';
+      } else if (st === 'unsupported') {
+        action = '<span style="color:var(--text-muted,#5c7189);font-size:11px">Indisponível\nneste aparelho</span>';
+      } else {
+        action = '<button class="btn btn-sm btn-primary" onclick="requestMobilePerm(\'' + p.id + '\')">Permitir</button>';
+      }
       return `
-        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
-          <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0">
             <span style="color:var(--accent-cyan);display:flex;align-items:center">${iconHtml}</span>
-            <div>
+            <div style="min-width:0">
               <b style="font-size:12px;color:var(--text-primary)">${p.name}</b>
               <div style="font-size:10.5px;color:var(--text-muted)">${p.desc}</div>
             </div>
           </div>
-          <button class="btn btn-sm btn-primary" onclick="requestMobilePerm('${p.id}')">Permitir</button>
+          ${action}
         </div>
       `;
-    }).join('');
+    }));
+
+    list.innerHTML =
+      '<button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="requestAllPerms()">⚡ Permitir Tudo</button>' +
+      rows.join('');
   }
   window.renderMobilePermissions = renderMobilePermissions;
 
   window.requestMobilePerm = async function (id) {
-    if (id === 'camera' && window.TermDevices) {
-      closeMobilePermissionsModal();
-      window.TermDevices.openCameraModal();
-    } else if (id === 'microphone' && window.TermVoice) {
-      window.TermVoice.toggleListen();
-      alert('Microfone ativado para comandos de voz!');
-    } else if (id === 'geolocation' && window.TermDevices) {
-      await window.TermDevices.getDeviceLocation();
-    } else if (id === 'notifications') {
-      if (window.Notification) {
-        const res = await Notification.requestPermission();
-        alert(`Notificações: ${res === 'granted' ? 'Autorizadas ✓' : 'Negadas'}`);
-      }
-    } else if (id === 'clipboard') {
-      if (window.TermDevices) await window.TermDevices.readFromClipboard();
-    } else if (id === 'bluetooth') {
-      if (window.TermDevices) await window.TermDevices.scanBluetoothDevices();
-    } else if (id === 'serial') {
-      if (window.TermDevices) await window.TermDevices.connectSerialDevice();
-    } else {
-      alert(`Permissão para [${id.toUpperCase()}] configurada.`);
+    const perm = MOBILE_PERMS.find(p => p.id === id);
+    if (!perm) return;
+    if (!perm.supported()) {
+      alert('Este aparelho/navegador não suporta ' + perm.name + '.');
+      return;
     }
+    try {
+      if (id === 'microphone') {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+        alert('✓ Microfone liberado!');
+      } else if (id === 'camera') {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(t => t.stop());
+        alert('✓ Câmera liberada!');
+      } else if (id === 'geolocation') {
+        await new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { timeout: 10000 }));
+        alert('✓ Localização liberada!');
+      } else if (id === 'notifications') {
+        const res = await Notification.requestPermission();
+        alert(res === 'granted' ? '✓ Notificações autorizadas!' : 'Notificações negadas. Libere nas configurações do navegador.');
+      } else if (id === 'clipboard') {
+        await navigator.clipboard.writeText('termchat-test');
+        alert('✓ Área de transferência liberada!');
+      } else if (id === 'bluetooth') {
+        await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
+        alert('✓ Bluetooth conectado!');
+      } else if (id === 'serial') {
+        await navigator.serial.requestPort();
+        alert('✓ Porta serial liberada!');
+      }
+    } catch (err) {
+      if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError' || err.code === 1)) {
+        alert('Permissão negada. Toque no ícone de cadeado/ⓘ na barra de endereço e libere ' + perm.name + ' manualmente.');
+      } else if (err && err.name === 'NotFoundError') {
+        alert('Nenhum dispositivo encontrado.');
+      } else {
+        alert('Não foi possível liberar ' + perm.name + ': ' + (err && err.message ? err.message : 'erro desconhecido'));
+      }
+    }
+    renderMobilePermissions();
+  };
+
+  window.requestAllPerms = async function () {
+    const results = [];
+    const simple = ['microphone', 'camera', 'geolocation', 'notifications', 'clipboard'];
+    for (const id of simple) {
+      const perm = MOBILE_PERMS.find(p => p.id === id);
+      if (!perm || !perm.supported()) continue;
+      const st = await getPermStatus(id);
+      if (st === 'granted' || st === 'denied') continue;
+      try {
+        if (id === 'microphone') {
+          const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+          s.getTracks().forEach(t => t.stop());
+        } else if (id === 'camera') {
+          const s = await navigator.mediaDevices.getUserMedia({ video: true });
+          s.getTracks().forEach(t => t.stop());
+        } else if (id === 'geolocation') {
+          await new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { timeout: 8000 }));
+        } else if (id === 'notifications') {
+          await Notification.requestPermission();
+        } else if (id === 'clipboard') {
+          await navigator.clipboard.writeText('termchat-test');
+        }
+        results.push(perm.name + ': ✓');
+      } catch (err) {
+        results.push(perm.name + ': negada');
+      }
+    }
+    alert('Permitir Tudo:\n' + results.join('\n'));
+    renderMobilePermissions();
   };
 
   window.executeQuickCommand = function (cmd) {
