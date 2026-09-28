@@ -37,7 +37,7 @@ jobs:
           PYEOF
       - name: SEO basico do index
         run: |
-          html=$(curl -s https://nicolaswjwkwk.github.io/termchat)
+          html=$(curl -sL https://nicolaswjwkwk.github.io/termchat)
           echo "$html" | grep -q "<title>" || { echo "FALTA <title>"; exit 1; }
           echo "$html" | grep -q 'name="description"' || { echo "FALTA meta description"; exit 1; }
           echo "$html" | grep -q 'name="viewport"' || { echo "FALTA viewport"; exit 1; }
