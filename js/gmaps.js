@@ -1,6 +1,6 @@
 /**
  * TermChat — Google Maps Platform Integration Suite
- * Provisioned Key: AIzaSyBXb-XRycOnxSMueT44VeJ4PL-LZvmz7W0
+ * API key supplied via backend /api/maps/config or local settings (never hardcoded)
  * Provides Interactive Maps, Places Search, Geocoding, Directions Routing,
  * Marker Pinning, Street View, and GeoJSON Editor Export.
  */
@@ -13,7 +13,7 @@
 
   class TermMapsSuite {
     constructor() {
-      this.apiKey = 'AIzaSyBXb-XRycOnxSMueT44VeJ4PL-LZvmz7W0';
+      this.apiKey = (localStorage.getItem('termchat_maps_key') || '').trim();
       this.map = null;
       this.markers = [];
       this.directionsService = null;
@@ -123,7 +123,7 @@
               <button class="btn btn-sm btn-primary" onclick="TermMaps.locateUser()">Meu GPS</button>
               <button class="btn btn-sm" onclick="TermMaps.searchAddress('Google')">Buscar Locais</button>
             </div>
-            <div style="position:absolute;bottom:8px;left:8px;font-size:10px;color:var(--text-dim)">API Key: ${this.apiKey.slice(0, 10)}... (Ativa)</div>
+            <div style="position:absolute;bottom:8px;left:8px;font-size:10px;color:var(--text-dim)">API Key: ${this.apiKey ? this.apiKey.slice(0, 10) + '...' : 'não configurada'}</div>
           </div>
         `;
       }

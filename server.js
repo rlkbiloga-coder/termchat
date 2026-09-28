@@ -1890,15 +1890,15 @@ app.post('/api/mcp/execute', async (req, res) => {
 });
 
 // ═════════════════════════════════════════════════════════════════
-// 13. GOOGLE MAPS PLATFORM API SUITE (Provisioned Key AIzaSyBXb-XRycOnxSMueT44VeJ4PL-LZvmz7W0)
+// 13. GOOGLE MAPS PLATFORM API SUITE (key via GOOGLE_MAPS_API_KEY env only)
 // ═════════════════════════════════════════════════════════════════
-const MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyBXb-XRycOnxSMueT44VeJ4PL-LZvmz7W0';
+const MAPS_API_KEY = (process.env.GOOGLE_MAPS_API_KEY || '').trim();
 
 app.get('/api/maps/config', (req, res) => {
   res.json({
     ok: true,
     apiKey: MAPS_API_KEY,
-    status: 'ACTIVE',
+    status: MAPS_API_KEY ? 'ACTIVE' : 'NOT_CONFIGURED',
     defaultCenter: { lat: -23.55052, lng: -46.633308 },
     libraries: ['places', 'marker', 'geometry'],
     features: ['places', 'directions', 'geocoding', 'streetview', 'markers']
