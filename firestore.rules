@@ -1,0 +1,146 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation helper for User
+    function isValidUser(data, userId) {
+      return data.keys().hasAll(['id', 'email'])
+        && data.keys().hasOnly(['id', 'email', 'displayName', 'photoURL', 'deviceMode', 'createdAt', 'updatedAt'])
+        && data.id == userId
+        && data.email is string && data.email.size() <= 256
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 128))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024))
+        && (!('deviceMode' in data) || (data.deviceMode in ['desktop', 'mobile']))
+        && (!('createdAt' in data) || data.createdAt is string)
+        && (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    // Validation helper for ChatMessage
+    function isValidChatMessage(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'role', 'content'])
+        && data.keys().hasOnly(['id', 'userId', 'role', 'content', 'provider', 'model', 'timestamp', 'createdAt'])
+        && data.userId == userId
+        && data.role in ['user', 'assistant', 'system', 'ai']
+        && data.content is string && data.content.size() <= 65536
+        && (!('provider' in data) || (data.provider is string && data.provider.size() <= 64))
+        && (!('model' in data) || (data.model is string && data.model.size() <= 64))
+        && (!('timestamp' in data) || data.timestamp is number)
+        && (!('createdAt' in data) || data.createdAt is string);
+    }
+
+    // Validation helper for ProjectSetting
+    function isValidProjectSetting(data, userId) {
+      return data.keys().hasAll(['id', 'userId'])
+        && data.keys().hasOnly(['id', 'userId', 'projectName', 'provider', 'model', 'theme', 'autoSave', 'deviceMode', 'activePlugins', 'updatedAt'])
+        && data.userId == userId
+        && (!('projectName' in data) || (data.projectName is string && data.projectName.size() <= 128))
+        && (!('provider' in data) || (data.provider is string && data.provider.size() <= 64))
+        && (!('model' in data) || (data.model is string && data.model.size() <= 64))
+        && (!('theme' in data) || (data.theme is string && data.theme.size() <= 32))
+        && (!('autoSave' in data) || data.autoSave is bool)
+        && (!('deviceMode' in data) || (data.deviceMode in ['desktop', 'mobile']))
+        && (!('activePlugins' in data) || (data.activePlugins is string && data.activePlugins.size() <= 4096))
+        && (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    // Validation helper for WorkspaceFile
+    function isValidWorkspaceFile(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'path'])
+        && data.keys().hasOnly(['id', 'userId', 'path', 'content', 'language', 'updatedAt'])
+        && data.userId == userId
+        && data.path is string && data.path.size() <= 512
+        && (!('content' in data) || (data.content is string && data.content.size() <= 262144))
+        && (!('language' in data) || (data.language is string && data.language.size() <= 64))
+        && (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    // Test connection document for initial SDK verification
+    match /test/connection {
+      allow read: if isSignedIn();
+    }
+
+    // User collection & sub-collections
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId)
+        && incoming().id == existing().id;
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Chat Messages subcollection
+      match /chat_messages/{messageId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(messageId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(messageId) && isValidChatMessage(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(messageId) && isValidChatMessage(incoming(), userId)
+          && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(messageId);
+      }
+
+      // Project Settings subcollection
+      match /project_settings/{settingId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(settingId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(settingId) && isValidProjectSetting(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(settingId) && isValidProjectSetting(incoming(), userId)
+          && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(settingId);
+      }
+
+      // Workspace Files subcollection
+      match /workspace_files/{fileId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(fileId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(fileId) && isValidWorkspaceFile(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(fileId) && isValidWorkspaceFile(incoming(), userId)
+          && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(fileId);
+      }
+
+      // Storage Files subcollection
+      match /storage_files/{fileId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(fileId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(fileId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(fileId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(fileId);
+      }
+
+      // Audit Logs subcollection
+      match /audit_logs/{logId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+      }
+    }
+  }
+}

@@ -1,0 +1,299 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Perfil e credenciais de acesso do usuário no TermChat.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID único do usuário correspondente ao Firebase Auth UID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "description": "E-mail do usuário",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Nome de exibição do usuário",
+          "maxLength": 128
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL da foto de perfil",
+          "maxLength": 1024
+        },
+        "deviceMode": {
+          "type": "string",
+          "description": "Modo de dispositivo preferido (desktop ou mobile)",
+          "enum": ["desktop", "mobile"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de criação do perfil"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data da última atualização"
+        }
+      },
+      "required": ["id", "email"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Mensagem individual do histórico de chat do assistente de IA.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID único da mensagem",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID do usuário autor da conversa",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "description": "Papel do emissor da mensagem",
+          "enum": ["user", "assistant", "system", "ai"]
+        },
+        "content": {
+          "type": "string",
+          "description": "Conteúdo textual da mensagem",
+          "maxLength": 65536
+        },
+        "provider": {
+          "type": "string",
+          "description": "Provedor de IA utilizado",
+          "maxLength": 64
+        },
+        "model": {
+          "type": "string",
+          "description": "Modelo de IA utilizado",
+          "maxLength": 64
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp da mensagem"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de persistência"
+        }
+      },
+      "required": ["id", "userId", "role", "content"]
+    },
+    "ProjectSetting": {
+      "title": "ProjectSetting",
+      "description": "Configurações gerais do projeto, preferências de IDE e IA.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID da configuração",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID do proprietário das configurações",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "projectName": {
+          "type": "string",
+          "description": "Nome do projeto atual",
+          "maxLength": 128
+        },
+        "provider": {
+          "type": "string",
+          "description": "Provedor padrão de IA",
+          "maxLength": 64
+        },
+        "model": {
+          "type": "string",
+          "description": "Modelo padrão selecionado",
+          "maxLength": 64
+        },
+        "theme": {
+          "type": "string",
+          "description": "Tema visual da IDE",
+          "maxLength": 32
+        },
+        "autoSave": {
+          "type": "boolean",
+          "description": "Se o salvamento automático está ativado"
+        },
+        "deviceMode": {
+          "type": "string",
+          "description": "Modo de layout da interface",
+          "enum": ["desktop", "mobile"]
+        },
+        "activePlugins": {
+          "type": "string",
+          "description": "Lista de IDs de plugins ativos serializada em JSON",
+          "maxLength": 4096
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de atualização"
+        }
+      },
+      "required": ["id", "userId"]
+    },
+    "WorkspaceFile": {
+      "title": "WorkspaceFile",
+      "description": "Arquivo salvo no sistema de arquivos virtual persistido.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID único do arquivo",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID do proprietário do arquivo",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "path": {
+          "type": "string",
+          "description": "Caminho relativo do arquivo no projeto",
+          "maxLength": 512
+        },
+        "content": {
+          "type": "string",
+          "description": "Conteúdo textual do arquivo",
+          "maxLength": 262144
+        },
+        "language": {
+          "type": "string",
+          "description": "Linguagem de programação para syntax highlighting",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data da última modificação"
+        }
+      },
+      "required": ["id", "userId", "path"]
+    },
+    "StorageFile": {
+      "title": "StorageFile",
+      "description": "Metadados de arquivos enviados ao Firebase Storage (PDFs, Imagens, Vídeos).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID único do arquivo",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID do proprietário",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "Nome do arquivo com extensão",
+          "maxLength": 256
+        },
+        "fileType": {
+          "type": "string",
+          "description": "MIME type do arquivo",
+          "maxLength": 128
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "Tamanho em bytes"
+        },
+        "downloadUrl": {
+          "type": "string",
+          "description": "URL de acesso ao arquivo",
+          "maxLength": 2048
+        },
+        "uploadedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de upload"
+        }
+      },
+      "required": ["id", "userId", "fileName", "downloadUrl"]
+    },
+    "AuditActionLog": {
+      "title": "AuditActionLog",
+      "description": "Registro de auditoria para ações executadas pelo agente e aprovações de segurança.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID do log",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID do usuário",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "actionType": {
+          "type": "string",
+          "description": "Tipo de ação executada",
+          "maxLength": 64
+        },
+        "service": {
+          "type": "string",
+          "description": "Serviço ou ferramenta invocada",
+          "maxLength": 64
+        },
+        "details": {
+          "type": "string",
+          "description": "Detalhes resumidos da operação",
+          "maxLength": 4096
+        },
+        "approved": {
+          "type": "boolean",
+          "description": "Se a ação foi aprovada pelo usuário"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp do registro"
+        }
+      },
+      "required": ["id", "userId", "actionType"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Armazena perfis e configurações de usuários autenticados."
+    },
+    "/users/{userId}/chat_messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Histórico de mensagens de chat do assistente de IA isolado por usuário."
+    },
+    "/users/{userId}/project_settings/{settingId}": {
+      "schema": "ProjectSetting",
+      "description": "Preferências de workspace e configurações de projeto por usuário."
+    },
+    "/users/{userId}/workspace_files/{fileId}": {
+      "schema": "WorkspaceFile",
+      "description": "Arquivos do projeto virtual persistidos na nuvem por usuário."
+    },
+    "/users/{userId}/storage_files/{fileId}": {
+      "schema": "StorageFile",
+      "description": "Metadados de uploads no Firebase Storage."
+    },
+    "/users/{userId}/audit_logs/{logId}": {
+      "schema": "AuditActionLog",
+      "description": "Trilha de auditoria e aprovação de ações sensíveis."
+    }
+  }
+}

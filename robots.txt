@@ -1,2 +1,17 @@
+# robots.txt for TermChat Web IDE
+# https://nicolaswjwkwk.github.io/termchat/
+
 User-agent: *
 Allow: /
+Allow: /css/
+Allow: /js/
+Allow: /icons/
+Allow: /manifest.json
+Allow: /plugins.json
+
+# Disallow private/temporary storage paths
+Disallow: /api/
+Disallow: /auth/callback
+
+# Sitemap
+Sitemap: https://nicolaswjwkwk.github.io/termchat/sitemap.xml

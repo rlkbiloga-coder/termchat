@@ -3,17 +3,63 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Permissions-Policy" content="clipboard-read=(self), clipboard-write=(self), geolocation=(self)">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; connect-src 'self' https: http://127.0.0.1:11434; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; frame-src 'self' data: blob:; base-uri 'self'; form-action 'none'">
-<meta name="description" content="TermChat — IDE web avançada com IA, editor de código, explorador de arquivos, terminal e plugins.">
-<meta property="og:title" content="TermChat — Web IDE & AI Development Platform">
-<meta property="og:description" content="TermChat — IDE web avançada com IA, editor de código, explorador de arquivos, terminal e plugins.">
+<meta name="description" content="TermChat — IDE web avançada com IA, editor de código, explorador de arquivos, terminal sandbox, GitHub e ecossistema Google.">
+<link rel="canonical" href="https://nicolaswjwkwk.github.io/termchat/">
 <meta name="robots" content="index,follow">
-<title>TermChat v2.1 — Web IDE, AI Code Review & GitHub Audit</title>
+<meta name="google-site-verification" content="termchat-build-verification">
+
+<!-- OpenGraph Metadata -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="TermChat">
+<meta property="og:url" content="https://nicolaswjwkwk.github.io/termchat/">
+<meta property="og:title" content="TermChat — Web IDE & AI Development Platform">
+<meta property="og:description" content="IDE web avançada com IA, editor de código, explorador de arquivos, terminal sandbox, GitHub e ecossistema Google.">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:image" content="https://nicolaswjwkwk.github.io/termchat/icons/icon-512x512.png">
+
+<!-- Twitter / X Cards -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TermChat — Web IDE & AI Development Platform">
+<meta name="twitter:description" content="IDE web avançada com IA, editor de código, explorador de arquivos, terminal sandbox, GitHub e ecossistema Google.">
+<meta name="twitter:image" content="https://nicolaswjwkwk.github.io/termchat/icons/icon-512x512.png">
+
+<!-- Mobile & PWA meta tags -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TermChat">
+<meta name="theme-color" content="#06090f">
+<title>TermChat v2.2 — Web IDE, AI Code Review & Google Cloud</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192x192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="theme-color" content="#06090f">
-<link rel="stylesheet" href="css/style.css?v=2.1.0">
+<link rel="stylesheet" href="css/style.css?v=2.2.0">
+
+<!-- Schema.org JSON-LD Structured Data for Google -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "TermChat Web IDE & AI Platform",
+  "url": "https://nicolaswjwkwk.github.io/termchat/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "All",
+  "description": "IDE web avançada com IA, editor de código, explorador de arquivos, terminal sandbox, GitHub e ecossistema Google.",
+  "browserRequirements": "Requires JavaScript. Requires HTML5.",
+  "softwareVersion": "2.2.0",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "TermChat Open Source"
+  }
+}
+</script>
 </head>
 <body>
 <div id="app-container">
@@ -22,15 +68,15 @@
   <header class="top-titlebar">
     <div class="titlebar-left">
       <div class="brand-logo">
-        <span class="brand-glyph">▶</span>
+        <span data-icon="terminal" data-icon-size="16" style="color:var(--accent-cyan)"></span>
         <span>TermChat</span>
       </div>
-      <span class="version-pill">v2.0.0</span>
+      <span class="version-pill">v2.2.0</span>
     </div>
 
     <div class="titlebar-center">
       <div class="global-search-box" onclick="openCommandPalette()">
-        <span class="search-icon">🔍</span>
+        <span data-icon="search" data-icon-size="14" class="search-icon"></span>
         <input class="global-search-input" readonly placeholder="Buscar arquivos, comandos e configurações... (Ctrl + P)">
         <span class="kbd-badge">Ctrl P</span>
       </div>
@@ -44,31 +90,49 @@
       </div>
 
       <div class="plugins-badge-btn" onclick="switchDockTab('plugins')" title="Ver plugins">
-        <span>🔌</span>
+        <span data-icon="plugins" data-icon-size="14"></span>
         <span id="topPluginsCount">Plugins 12 ativos</span>
-        <span style="font-size:9px">▾</span>
+        <span data-icon="chevronDown" data-icon-size="10"></span>
       </div>
 
       <button class="btn-head-audit" onclick="switchDockTab('audit')" title="Auditoria de Repositório & Riscos GitHub">
-        <span>🛡️</span>
+        <span data-icon="shield" data-icon-size="14"></span>
         <span>Verificar Erros & Riscos</span>
       </button>
 
+      <!-- Google Connect & Cloud Button -->
+      <button class="btn-connect-google" id="btnConnectGoogle" onclick="if(window.TermWorkspace) TermWorkspace.openWorkspaceModal('gmail'); else openGoogleAccountModal();" title="Google Workspace Suite (Gmail, Chat, Docs, Forms, Drive)">
+        <span data-icon="google" data-icon-size="14"></span>
+        <span id="btnGoogleText">Workspace</span>
+      </button>
+
+      <button class="btn-icon-head" onclick="if(window.TermMaps) TermMaps.openMapsModal()" title="Google Maps Platform (Rotas, Places & Geocoding)">
+        <span data-icon="gmaps" data-icon-size="15"></span>
+      </button>
+
+      <button class="btn-icon-head" onclick="if(window.TermCloudSql) TermCloudSql.openCloudSqlModal()" title="Cloud SQL PostgreSQL (original-mission-k5xj8)">
+        <span data-icon="cloudsql" data-icon-size="15"></span>
+      </button>
+
       <button class="btn-connect-gh" onclick="TermGit.loginWithGitHub()" title="Conectar ao GitHub">
-        <span>🐙</span>
-        <span id="btnConnectText">Conectar</span>
+        <span data-icon="github" data-icon-size="14"></span>
+        <span id="btnConnectText">GitHub</span>
       </button>
 
       <button id="voiceMicBtn" class="btn-icon-head" onclick="TermVoice.toggleListen()" title="Comando por voz (Microfone)">
-        🎙️
+        <span data-icon="mic" data-icon-size="14"></span>
+      </button>
+
+      <button class="btn-icon-head" onclick="openMobilePermissionsModal()" title="Permissões de Celular & Dispositivo">
+        <span data-icon="mobile" data-icon-size="14"></span>
       </button>
 
       <button class="btn-icon-head" onclick="forceReloadIDE()" title="Atualizar IDE / Limpar Cache">
-        🔄
+        <span data-icon="refresh" data-icon-size="14"></span>
       </button>
 
       <button class="btn-icon-head" onclick="toggleTheme()" title="Alternar tema claro/escuro">
-        ☀️
+        <span data-icon="sun" data-icon-size="14"></span>
       </button>
 
       <img id="ghUserAvatar" class="avatar-mini" src="icons/icon-192x192.png" onclick="switchDockTab('git')" title="Perfil e Git" alt="Avatar">
@@ -84,10 +148,14 @@
         <div class="menu-entry" onclick="TermEditorInst.saveCurrent()">Salvar <span class="shortcut">Ctrl+S</span></div>
         <div class="menu-entry" onclick="document.getElementById('impFile').click()">Abrir Arquivo / Projeto...</div>
         <div class="menu-entry separator"></div>
+        <div class="menu-entry" onclick="openGoogleAccountModal()">Conta Google & Drive Sync...</div>
+        <div class="menu-entry" onclick="saveToGoogleDrive()">Backup Imediato no Google Drive</div>
+        <div class="menu-entry separator"></div>
         <div class="menu-entry" onclick="TermVFS.createSnapshot('Manual'); alert('Snapshot criado com sucesso!')">Criar Snapshot <span class="shortcut">Ctrl+Shift+S</span></div>
         <div class="menu-entry" onclick="TermGit.exportZip()">Exportar Workspace (JSON)</div>
         <div class="menu-entry separator"></div>
-        <div class="menu-entry" onclick="forceReloadIDE()">🔄 Atualizar IDE e Limpar Cache</div>
+        <div class="menu-entry" onclick="openMobilePermissionsModal()">Permissões de Dispositivo & Hardware...</div>
+        <div class="menu-entry" onclick="forceReloadIDE()">Atualizar IDE e Limpar Cache</div>
       </div>
     </div>
 
@@ -115,7 +183,7 @@
         <div class="menu-entry" onclick="toggleAgentPanel()">Alternar Painel de IA <span class="shortcut">Ctrl+J</span></div>
         <div class="menu-entry" onclick="toggleBottomDock()">Alternar Terminal / Dock <span class="shortcut">Ctrl+`</span></div>
         <div class="menu-entry separator"></div>
-        <div class="menu-entry" onclick="switchDockTab('audit')">🛡️ Auditoria & Riscos no Repositório</div>
+        <div class="menu-entry" onclick="switchDockTab('audit')">Auditoria & Riscos no Repositório</div>
         <div class="menu-entry" onclick="switchDockTab('preview')">Live Preview da Aplicação</div>
       </div>
     </div>
@@ -133,7 +201,7 @@
       <div id="menu-executar" class="menu-dropdown hidden">
         <div class="menu-entry" onclick="executeQuickCommand('npm test')">Executar Testes <span class="shortcut">F5</span></div>
         <div class="menu-entry" onclick="executeQuickCommand('npm run build')">Compilar / Build</div>
-        <div class="menu-entry" onclick="switchDockTab('audit'); startWorkspaceCodeReview('all')">🛡️ Verificar Erros no Código (Code Review) <span class="shortcut">F6</span></div>
+        <div class="menu-entry" onclick="switchDockTab('audit'); startWorkspaceCodeReview('all')">Verificar Erros no Código (Code Review) <span class="shortcut">F6</span></div>
         <div class="menu-entry" onclick="switchDockTab('preview')">Iniciar Live Preview</div>
       </div>
     </div>
@@ -151,7 +219,7 @@
     <div style="position:relative">
       <button class="menu-item-btn" onclick="toggleMenu('menu-git')">Git</button>
       <div id="menu-git" class="menu-dropdown hidden">
-        <div class="menu-entry" onclick="switchDockTab('audit'); startRepoAudit()">🛡️ Auditar Repositório GitHub (Bugs & Riscos)</div>
+        <div class="menu-entry" onclick="switchDockTab('audit'); startRepoAudit()">Auditar Repositório GitHub (Bugs & Riscos)</div>
         <div class="menu-entry" onclick="switchDockTab('git')">Abrir Painel Git / GitHub</div>
         <div class="menu-entry" onclick="doGitHubPull()">Pull Remoto (GitHub)</div>
         <div class="menu-entry" onclick="doGitHubPush()">Push Remoto (GitHub)</div>
@@ -162,9 +230,9 @@
     <div style="position:relative">
       <button class="menu-item-btn" onclick="toggleMenu('menu-ajuda')">Ajuda</button>
       <div id="menu-ajuda" class="menu-dropdown hidden">
-        <div class="menu-entry" onclick="alert('TermChat v2.1 - IDE Web com IA\nAuditoria de Código & GitHub Integrados\nOpen Source MIT.')">Sobre o TermChat</div>
+        <div class="menu-entry" onclick="alert('TermChat v2.2 - IDE Web com IA\nAuditoria de Código & GitHub Integrados\nOpen Source MIT.')">Sobre o TermChat</div>
         <div class="menu-entry" onclick="window.open('https://github.com/nicolaswjwkwk/termchat', '_blank')">Repositório GitHub</div>
-        <div class="menu-entry" onclick="forceReloadIDE()">🔄 Atualizar IDE / Limpar Cache</div>
+        <div class="menu-entry" onclick="forceReloadIDE()">Atualizar IDE / Limpar Cache</div>
         <div class="menu-entry" onclick="executeQuickCommand('help')">Documentação de Comandos</div>
       </div>
     </div>
@@ -177,33 +245,36 @@
       <!-- 3A. LEFT ACTIVITY BAR (VERTICAL ICONS) -->
       <aside class="activity-bar">
         <button class="act-btn active" id="actBtnExplorer" onclick="selectActivity('explorer')" title="Explorador de Arquivos (Ctrl+Shift+E)">
-          📁<span class="act-lbl">Explorer</span>
+          <span data-icon="folder" data-icon-size="18"></span><span class="act-lbl">Explorer</span>
         </button>
         <button class="act-btn" id="actBtnSearch" onclick="selectActivity('search')" title="Busca Global (Ctrl+Shift+F)">
-          🔍<span class="act-lbl">Buscar</span>
+          <span data-icon="search" data-icon-size="18"></span><span class="act-lbl">Buscar</span>
         </button>
         <button class="act-btn" id="actBtnGit" onclick="selectActivity('git')" title="Controle de Versão Git">
-          🌿<span class="act-lbl">Git</span>
+          <span data-icon="git" data-icon-size="18"></span><span class="act-lbl">Git</span>
         </button>
         <button class="act-btn" id="actBtnPlugins" onclick="selectActivity('plugins')" title="Mercado de Plugins">
-          🔌<span class="act-lbl">Plugins</span>
+          <span data-icon="plugins" data-icon-size="18"></span><span class="act-lbl">Plugins</span>
         </button>
         <button class="act-btn" id="actBtnAgents" onclick="selectActivity('agents')" title="Agentes Especializados">
-          🤖<span class="act-lbl">Agentes</span>
+          <span data-icon="cpu" data-icon-size="18"></span><span class="act-lbl">Agentes</span>
         </button>
         <button class="act-btn" id="actBtnMcp" onclick="selectActivity('mcp')" title="Model Context Protocol">
-          ⚡<span class="act-lbl">MCP</span>
+          <span data-icon="zap" data-icon-size="18"></span><span class="act-lbl">MCP</span>
+        </button>
+        <button class="act-btn" id="actBtnIntegrations" onclick="selectActivity('integrations')" title="Central de 40 Integrações (Cloud, IA, Dev, Google, Mídia)">
+          <span data-icon="link" data-icon-size="18"></span><span class="act-lbl">Hub 40</span>
         </button>
         <button class="act-btn" id="actBtnDeploy" onclick="selectActivity('deploy')" title="Deploy e Publicação">
-          🚀<span class="act-lbl">Deploy</span>
+          <span data-icon="externalLink" data-icon-size="18"></span><span class="act-lbl">Deploy</span>
         </button>
         <button class="act-btn" id="actBtnDb" onclick="selectActivity('database')" title="Banco de Dados">
-          🗄️<span class="act-lbl">Banco</span>
+          <span data-icon="database" data-icon-size="18"></span><span class="act-lbl">Banco</span>
         </button>
 
         <div class="activity-bar-bottom">
           <button class="act-btn" onclick="selectActivity('config')" title="Configurações (Ctrl+,)">
-            ⚙️<span class="act-lbl">Config</span>
+            <span data-icon="settings" data-icon-size="18"></span><span class="act-lbl">Config</span>
           </button>
         </div>
       </aside>
@@ -214,9 +285,9 @@
           <span id="sidebarSectionTitle">EXPLORADOR</span>
           <div class="sidebar-actions">
             <button onclick="createNewFilePrompt()" title="Novo Arquivo">+</button>
-            <button onclick="createNewFolderPrompt()" title="Nova Pasta">📁</button>
-            <button onclick="renderFileTree()" title="Atualizar Árvore">↻</button>
-            <button onclick="toggleSidebar()" title="Recolher Barra Lateral">◀</button>
+            <button onclick="createNewFolderPrompt()" title="Nova Pasta"><span data-icon="folder" data-icon-size="12"></span></button>
+            <button onclick="renderFileTree()" title="Atualizar Árvore"><span data-icon="refresh" data-icon-size="12"></span></button>
+            <button onclick="toggleSidebar(false)" title="Fechar Barra Lateral (×)" style="font-weight:bold;font-size:13px">✕</button>
           </div>
         </div>
 
@@ -224,7 +295,7 @@
         <div id="sidebarExplorerView" class="sidebar-subview">
           <div class="project-root-header" onclick="toggleProjectRoot()">
             <span id="rootChevron">▼</span>
-            <span style="color:var(--accent-cyan)">📁</span>
+            <span data-icon="folder" data-icon-size="14" style="color:var(--accent-cyan);margin-right:4px"></span>
             <span id="projectRootName">MEU-PROJETO</span>
           </div>
 
@@ -357,6 +428,24 @@
           <button class="btn" style="width:100%;margin-bottom:6px" onclick="document.getElementById('impFile').click()">📂 Restaurar Backup JSON</button>
           <button class="btn" style="width:100%;color:var(--accent-pink);border-color:rgba(244,63,94,0.3)" onclick="wipe()">⚠️ Resetar Workspace</button>
         </div>
+
+        <!-- View 10: Integrations Hub (40 Services) -->
+        <div id="sidebarIntegrationsView" class="sidebar-subview hidden" style="padding:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <b style="font-size:11.5px;color:var(--text-main)">Central de 40 Integrações</b>
+            <span class="badge" style="background:rgba(56,189,248,0.15);color:var(--accent-cyan);font-size:9.5px">Zero-Trust</span>
+          </div>
+          <input class="ide-input-small" placeholder="Filtrar integrações..." oninput="TermIntegrations.setSearchFilter(this.value)">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">
+            <button class="btn btn-sm int-cat-btn active" id="intCat_all" onclick="TermIntegrations.setCategoryFilter('all')">Todas</button>
+            <button class="btn btn-sm int-cat-btn" id="intCat_backend" onclick="TermIntegrations.setCategoryFilter('backend')">Cloud</button>
+            <button class="btn btn-sm int-cat-btn" id="intCat_ai" onclick="TermIntegrations.setCategoryFilter('ai')">IA</button>
+            <button class="btn btn-sm int-cat-btn" id="intCat_productivity" onclick="TermIntegrations.setCategoryFilter('productivity')">Google</button>
+            <button class="btn btn-sm int-cat-btn" id="intCat_media" onclick="TermIntegrations.setCategoryFilter('media')">Mídia</button>
+            <button class="btn btn-sm int-cat-btn" id="intCat_hardware" onclick="TermIntegrations.setCategoryFilter('hardware')">Device</button>
+          </div>
+          <div id="integrationsHubList" style="display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 270px);overflow-y:auto"></div>
+        </div>
       </aside>
 
       <!-- 3C. CENTER WORKSPACE: TABS, EDITOR & BOTTOM DOCK -->
@@ -365,13 +454,26 @@
         <!-- Editor Tabs Strip -->
         <div class="editor-tabs-strip" id="editorTabs"></div>
 
-        <!-- Breadcrumbs Line -->
+        <!-- Breadcrumbs Line & Action Toolbar -->
         <div class="editor-breadcrumbs">
-          <span style="color:var(--accent-cyan)">src</span>
-          <span class="sep">&gt;</span>
-          <span id="bcFolder">components</span>
-          <span class="sep">&gt;</span>
-          <span id="bcFile" class="curr">Chat.jsx</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="color:var(--accent-cyan)">workspace</span>
+            <span class="sep">&gt;</span>
+            <span id="bcFolder">root</span>
+            <span class="sep">&gt;</span>
+            <span id="bcFile" class="curr">index.html</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+            <button class="btn btn-sm" style="background:rgba(56,189,248,0.12);color:var(--accent-cyan);border:1px solid rgba(56,189,248,0.3);font-size:11px;padding:2px 8px" onclick="TermEditorInst.openLiveCodeModal()" title="Adicionar e transmitir código em tempo real (Ctrl+Shift+K)">
+              <span data-icon="sparkles" data-icon-size="12"></span> Inserir Código ao Vivo
+            </button>
+            <button class="btn btn-sm" style="font-size:11px;padding:2px 8px" onclick="TermEditorInst.toggleSearch()" title="Localizar no arquivo (Ctrl+F)">
+              <span data-icon="search" data-icon-size="12"></span> Buscar
+            </button>
+            <button class="btn btn-sm" style="font-size:11px;padding:2px 8px" onclick="updatePreview(); switchDockTab('preview')" title="Atualizar Live Preview">
+              <span data-icon="globe" data-icon-size="12"></span> Preview
+            </button>
+          </div>
         </div>
 
         <!-- Hidden Search / Replace Bar -->
@@ -383,25 +485,14 @@
           <button class="btn" onclick="TermEditorInst.toggleSearch()">Fechar</button>
         </div>
 
-        <!-- Editor Stage (Line numbers + Textarea + Minimap) -->
+        <!-- Editor Stage (Line numbers + Textarea + Dynamic Minimap) -->
         <div class="editor-stage">
           <div class="line-numbers-col" id="lineNumbers"></div>
           <div class="editor-textarea-wrap">
             <pre id="codeHighlight"></pre>
             <textarea id="codeTextarea" spellcheck="false" autocomplete="off" oninput="TermEditorInst.onCodeInput()" onscroll="TermEditorInst.syncScroll()" onkeydown="TermEditorInst.handleTab(event)"></textarea>
           </div>
-          <div class="editor-minimap" id="editorMinimap">
-            <div class="minimap-bar" style="width:75%"></div>
-            <div class="minimap-bar" style="width:90%"></div>
-            <div class="minimap-bar" style="width:40%"></div>
-            <div class="minimap-bar" style="width:65%"></div>
-            <div class="minimap-bar" style="width:85%"></div>
-            <div class="minimap-bar" style="width:50%"></div>
-            <div class="minimap-bar" style="width:70%"></div>
-            <div class="minimap-bar" style="width:95%"></div>
-            <div class="minimap-bar" style="width:30%"></div>
-            <div class="minimap-bar" style="width:80%"></div>
-          </div>
+          <div class="editor-minimap" id="editorMinimap" title="Minimap interativo - clique para navegar rapidamente no arquivo"></div>
         </div>
 
         <!-- Editor Status Strip -->
@@ -427,7 +518,7 @@
             <div class="dock-tabs">
               <button class="dock-tab active" id="dockTabTerminal" onclick="switchDockTab('terminal')">TERMINAL</button>
               <button class="dock-tab" id="dockTabProblems" onclick="switchDockTab('problems')">PROBLEMAS <span class="dock-badge-num" id="problemsBadgeCount">0</span></button>
-              <button class="dock-tab" id="dockTabAudit" onclick="switchDockTab('audit')" style="color:var(--accent-cyan);font-weight:700">🛡️ AUDITORIA & RISCOS <span class="dock-badge-num" id="auditBadgeCount">!</span></button>
+              <button class="dock-tab" id="dockTabAudit" onclick="switchDockTab('audit')" style="color:var(--accent-cyan);font-weight:700"><span data-icon="shield" data-icon-size="12"></span> AUDITORIA & RISCOS <span class="dock-badge-num" id="auditBadgeCount">!</span></button>
               <button class="dock-tab" id="dockTabGit" onclick="switchDockTab('git')">GIT</button>
               <button class="dock-tab" id="dockTabPreview" onclick="switchDockTab('preview')">PREVIEW</button>
               <button class="dock-tab" id="dockTabConsole" onclick="switchDockTab('console')">CONSOLE</button>
@@ -435,9 +526,9 @@
             </div>
 
             <div class="dock-tools">
-              <button onclick="toggleMultiPaneDock()" id="btnDockPaneMode" class="btn-dock-tool" title="Alternar Modo Multi-painel / Foco">⊞ Multi-painel</button>
-              <button onclick="toggleDockMax()" id="btnDockMax" class="btn-dock-tool" title="Maximizar / Restaurar Painel">⇳</button>
-              <button onclick="toggleBottomDock()" class="btn-dock-tool" title="Fechar Painel">×</button>
+              <button onclick="toggleMultiPaneDock()" id="btnDockPaneMode" class="btn-dock-tool" title="Alternar Modo Multi-painel / Foco">Multi-painel</button>
+              <button onclick="toggleDockMax()" id="btnDockMax" class="btn-dock-tool" title="Maximizar / Restaurar Painel">Maximizar</button>
+              <button onclick="toggleBottomDock()" class="btn-dock-tool" title="Fechar Painel">✕</button>
             </div>
           </div>
 
@@ -482,7 +573,7 @@
                   <!-- GitHub Auth Bar -->
                   <div id="githubLoggedOutView" style="display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.02);padding:6px;border-radius:4px;border:1px solid var(--border)">
                     <span style="font-size:11px;color:var(--text-dim)">GitHub:</span>
-                    <button class="btn btn-primary btn-sm" onclick="TermGit.loginWithGitHub()">🐙 Conectar OAuth</button>
+                    <button class="btn btn-primary btn-sm" onclick="TermGit.loginWithGitHub()"><span data-icon="github" data-icon-size="14"></span> Conectar OAuth</button>
                     <button class="btn btn-sm" onclick="promptPatToken()">Chave PAT</button>
                   </div>
 
@@ -502,7 +593,7 @@
                     <div style="display:flex;gap:6px;align-items:center">
                       <select id="githubRepoSelect" onchange="onSelectGitHubRepo(this.value)" style="flex:1;background:var(--bg-panel);border:1px solid var(--border);color:#fff;border-radius:3px;padding:3px 6px;font-size:11px"></select>
                       <input id="githubBranchInput" placeholder="branch" value="main" style="width:70px;background:var(--bg-panel);border:1px solid var(--border);color:#fff;border-radius:3px;padding:3px 6px;font-size:11px">
-                      <a id="btnGhOpenRepo" href="#" target="_blank" class="btn btn-sm" style="display:none;padding:3px 6px" title="Abrir no GitHub">🔗</a>
+                      <a id="btnGhOpenRepo" href="#" target="_blank" class="btn btn-sm" style="display:none;padding:3px 6px" title="Abrir no GitHub"><span data-icon="externalLink" data-icon-size="12"></span></a>
                     </div>
                   </div>
 
@@ -510,7 +601,7 @@
 
                   <!-- Local Git Branch & Commit -->
                   <div class="git-status-header">
-                    <span>🌿 Branch Local:</span>
+                    <span style="display:flex;align-items:center;gap:4px"><span data-icon="git" data-icon-size="13"></span> Branch:</span>
                     <select id="gitBranchSelect" onchange="TermGit.switchBranch(this.value); renderGitPanel()" style="background:var(--bg-panel);border:1px solid var(--border);color:#fff;border-radius:3px;padding:2px 4px;font-size:11px"></select>
                     <span style="margin-left:auto;color:var(--text-dim)">⇡2 ⇣1</span>
                   </div>
@@ -518,8 +609,8 @@
                   <div class="git-commit-dock-box">
                     <input class="git-dock-input" id="gitCommitMsgInput" placeholder="Mensagem de commit (Ctrl + Enter)">
                     <div style="display:flex;gap:4px">
-                      <button class="btn-dock-commit" onclick="doGitCommit()" style="flex:1">✓ Commit Local</button>
-                      <button class="btn btn-sm" onclick="suggestGitCommit()" title="Gerar mensagem com IA">⚡ Sugerir</button>
+                      <button class="btn-dock-commit" onclick="doGitCommit()" style="flex:1">Commit Local</button>
+                      <button class="btn btn-sm" onclick="suggestGitCommit()" title="Gerar mensagem com IA"><span data-icon="zap" data-icon-size="12"></span> Sugerir</button>
                     </div>
                   </div>
 
@@ -539,15 +630,14 @@
                 <div class="pane-title-bar">
                   <span>PREVIEW WEB</span>
                   <div style="display:flex;gap:4px">
-                    <button class="btn btn-sm" onclick="updatePreview()" title="Recarregar">↻</button>
-                    <button class="btn btn-sm btn-device" onclick="setPreviewDevice('mobile')" title="Modo Mobile">📱</button>
-                    <button class="btn btn-sm btn-device" onclick="setPreviewDevice('tablet')" title="Modo Tablet">📟</button>
-                    <button class="btn btn-sm btn-device active" onclick="setPreviewDevice('desktop')" title="Modo Desktop">💻</button>
+                    <button class="btn btn-sm" onclick="updatePreview()" title="Recarregar"><span data-icon="refresh" data-icon-size="12"></span></button>
+                    <button class="btn btn-sm btn-device" onclick="setPreviewDevice('mobile')" title="Modo Mobile"><span data-icon="mobile" data-icon-size="12"></span></button>
+                    <button class="btn btn-sm btn-device active" onclick="setPreviewDevice('desktop')" title="Modo Desktop"><span data-icon="desktop" data-icon-size="12"></span></button>
                   </div>
                 </div>
                 <div class="dock-preview-box">
                   <div class="preview-address-bar">
-                    <span style="font-size:11px;color:var(--text-dim)">🌐</span>
+                    <span data-icon="globe" data-icon-size="12" style="color:var(--text-dim)"></span>
                     <input class="preview-url-input" id="previewUrlBar" readonly value="http://localhost:5173">
                     <span id="previewErrorBadge" class="hidden" style="color:var(--accent-pink);font-size:10px"></span>
                   </div>
@@ -572,7 +662,7 @@
       <aside class="ide-agent-panel" id="ideAgentPanel">
         <div class="agent-panel-header">
           <div class="agent-title">
-            <span>✨</span>
+            <span data-icon="sparkles" data-icon-size="15" style="color:var(--accent-purple)"></span>
             <span>AGENTE IA</span>
           </div>
 
@@ -582,6 +672,8 @@
             <button class="agent-tab-btn" id="tabAgentTasks" onclick="switchAgentSubtab('tasks')">Tarefas</button>
             <button class="agent-tab-btn" id="tabAgentMemory" onclick="switchAgentSubtab('memory')">Memória</button>
           </div>
+
+          <button class="btn-dock-tool" onclick="toggleAgentPanel(false)" title="Fechar Painel de IA (×)" style="margin-left:auto;font-size:13px;padding:2px 7px">✕</button>
         </div>
 
         <div class="agent-body-scroll">
@@ -590,36 +682,36 @@
           <div id="subviewAgentChat" class="agent-subview">
             <!-- Greeting Box -->
             <div class="agent-greeting-box">
-              <div class="greeting-title">👋 Olá! Sou seu agente de desenvolvimento.</div>
-              <div class="greeting-sub">Como posso ajudar hoje com seu projeto?</div>
+              <div class="greeting-title">TermChat AI Engine</div>
+              <div class="greeting-sub">Como posso ajudar com a arquitetura ou implementação do seu projeto?</div>
             </div>
 
             <!-- Quick Action Pills -->
             <div class="agent-quick-pills">
               <button class="quick-pill-btn" onclick="sendAgentPrompt('Analise este projeto e identifique oportunidades de melhoria.')">
-                <span>🔍</span> Analisar projeto
+                <span data-icon="search" data-icon-size="13"></span> Analisar projeto
               </button>
               <button class="quick-pill-btn" onclick="sendAgentPrompt('Crie um novo componente React moderno com Tailwind CSS.')">
-                <span>🧩</span> Criar componente
+                <span data-icon="code" data-icon-size="13"></span> Criar componente
               </button>
               <button class="quick-pill-btn" onclick="sendAgentPrompt('Procure erros de sintaxe ou de lógica nos arquivos atuais.')">
-                <span>🐛</span> Corrigir erros
+                <span data-icon="cpu" data-icon-size="13"></span> Corrigir erros
               </button>
               <button class="quick-pill-btn" onclick="sendAgentPrompt('Otimize a performance e o tempo de carregamento deste código.')">
-                <span>⚡</span> Otimizar código
+                <span data-icon="zap" data-icon-size="13"></span> Otimizar código
               </button>
               <button class="quick-pill-btn" onclick="sendAgentPrompt('Escreva testes automatizados para as principais funções.')">
-                <span>🧪</span> Escrever testes
+                <span data-icon="check" data-icon-size="13"></span> Escrever testes
               </button>
               <button class="quick-pill-btn" onclick="sendAgentPrompt('Gere documentação técnica detalhada para o projeto.')">
-                <span>📝</span> Documentar código
+                <span data-icon="file" data-icon-size="13"></span> Documentar código
               </button>
             </div>
 
             <!-- Project Context Card -->
             <div class="agent-context-card">
               <div class="context-header">
-                <span>📁 Contexto do Projeto</span>
+                <span style="display:flex;align-items:center;gap:6px"><span data-icon="folder" data-icon-size="14"></span> Contexto do Workspace</span>
                 <span id="agentContextName" style="color:var(--text-main);font-weight:700">meu-projeto</span>
               </div>
 
@@ -647,16 +739,16 @@
             <div class="agent-suggestions-box">
               <div class="suggestions-title">Sugestões de Ação</div>
               <div class="suggestion-row" onclick="sendAgentPrompt(this.innerText)">
-                <span>💡</span> Analise todo o projeto e gere um resumo técnico
+                <span data-icon="zap" data-icon-size="13"></span> Analise todo o projeto e gere um resumo técnico
               </div>
               <div class="suggestion-row" onclick="sendAgentPrompt(this.innerText)">
-                <span>⚡</span> Encontre possíveis bugs e problemas de performance
+                <span data-icon="cpu" data-icon-size="13"></span> Encontre possíveis bugs e problemas de performance
               </div>
               <div class="suggestion-row" onclick="sendAgentPrompt(this.innerText)">
-                <span>🧪</span> Crie testes para os componentes principais
+                <span data-icon="check" data-icon-size="13"></span> Crie testes para os componentes principais
               </div>
               <div class="suggestion-row" onclick="sendAgentPrompt(this.innerText)">
-                <span>🔒</span> Implemente auditoria de segurança OWASP
+                <span data-icon="shield" data-icon-size="13"></span> Implemente auditoria de segurança OWASP
               </div>
             </div>
 
@@ -709,8 +801,8 @@
 
               <div class="agent-action-buttons">
                 <button type="button" class="btn-agent-tool" onclick="promptMentionFile()" title="Mencionar arquivo (@)">@</button>
-                <button type="button" class="btn-agent-tool" onclick="TermVoice.toggleListen()" title="Voz (Microfone)">🎙️</button>
-                <button type="submit" id="send" class="btn-agent-send" title="Enviar mensagem">➤</button>
+                <button type="button" class="btn-agent-tool" onclick="TermVoice.toggleListen()" title="Voz (Microfone)"><span data-icon="mic" data-icon-size="13"></span></button>
+                <button type="submit" id="send" class="btn-agent-send" title="Enviar mensagem"><span data-icon="send" data-icon-size="13"></span></button>
               </div>
             </div>
           </form>
@@ -724,41 +816,43 @@
   <footer class="ide-statusbar">
     <div class="statusbar-left">
       <div class="status-item" onclick="switchDockTab('git')" title="Git Branch">
-        <span>🌿</span>
+        <span data-icon="git" data-icon-size="12"></span>
         <span id="gitCurrentBranch">main*</span>
       </div>
       <div class="status-item" onclick="renderFileTree()" title="Sincronizar">
-        <span>↻</span>
+        <span data-icon="refresh" data-icon-size="12"></span>
       </div>
       <div class="status-item" onclick="switchDockTab('problems')" title="Problemas">
-        <span>⊗ 12</span>
-        <span>⚠ 2</span>
+        <span>⊗ 0</span>
+        <span>⚠ 0</span>
       </div>
       <div class="status-item" title="Live Share">
-        <span>📡 Live Share</span>
+        <span>● Live Share</span>
       </div>
     </div>
 
     <div class="statusbar-right">
-      <div class="status-item" onclick="switchDockTab('audit')" title="Auditoria de Repositório & Riscos" style="cursor:pointer;color:var(--accent-cyan)">🛡️ Riscos: <span id="sbRisksCount">0</span></div>
+      <div class="status-item" onclick="switchDockTab('audit')" title="Auditoria de Repositório & Riscos" style="cursor:pointer;color:var(--accent-cyan)"><span data-icon="shield" data-icon-size="12"></span> Riscos: <span id="sbRisksCount">0</span></div>
       <div class="status-item">UTF-8</div>
       <div class="status-item">LF</div>
       <div class="status-item">JavaScript JSX</div>
-      <div class="status-item">✓ Prettier</div>
-      <div class="status-item" onclick="toggleLayoutMode()" title="Mudar Layout">Layout: IDE ⊞</div>
-      <div class="status-item" onclick="forceReloadIDE()" title="Atualizar IDE e Limpar Cache" style="cursor:pointer">🔄 v2.1.0</div>
-      <div class="status-item" onclick="toggleModelsDrawer()" title="Modelos de IA">🤖</div>
+      <div class="status-item">Prettier</div>
+      <div class="status-item" onclick="toggleLayoutMode()" title="Mudar Layout">Layout: IDE</div>
+      <div class="status-item" onclick="forceReloadIDE()" title="Atualizar IDE e Limpar Cache" style="cursor:pointer">v2.2.0</div>
+      <div class="status-item" onclick="toggleModelsDrawer()" title="Modelos de IA"><span data-icon="cpu" data-icon-size="12"></span></div>
     </div>
   </footer>
 
   <!-- 4B. MOBILE QUICK PANELS BAR (<900px screens) -->
   <nav class="mobile-ide-toolbar" id="mobileIdeToolbar">
-    <button onclick="mobileFocusPanel('sidebar')" class="mobile-tab-btn active" id="mTabSidebar">📁 Arquivos</button>
-    <button onclick="mobileFocusPanel('editor')" class="mobile-tab-btn" id="mTabEditor">💻 Editor</button>
-    <button onclick="switchDockTab('audit')" class="mobile-tab-btn" id="mTabAudit">🛡️ Riscos</button>
-    <button onclick="mobileFocusPanel('dock')" class="mobile-tab-btn" id="mTabDock">⌨️ Terminal</button>
-    <button onclick="mobileFocusPanel('preview')" class="mobile-tab-btn" id="mTabPreview">🌐 Preview</button>
-    <button onclick="mobileFocusPanel('agent')" class="mobile-tab-btn" id="mTabAgent">🤖 Agente IA</button>
+    <button onclick="mobileFocusPanel('sidebar')" class="mobile-tab-btn active" id="mTabSidebar"><span data-icon="folder" data-icon-size="12"></span> Arquivos</button>
+    <button onclick="mobileFocusPanel('editor')" class="mobile-tab-btn" id="mTabEditor"><span data-icon="code" data-icon-size="12"></span> Editor</button>
+    <button onclick="switchDockTab('audit')" class="mobile-tab-btn" id="mTabAudit"><span data-icon="shield" data-icon-size="12"></span> Riscos</button>
+    <button onclick="mobileFocusPanel('dock')" class="mobile-tab-btn" id="mTabDock"><span data-icon="terminal" data-icon-size="12"></span> Terminal</button>
+    <button onclick="mobileFocusPanel('preview')" class="mobile-tab-btn" id="mTabPreview"><span data-icon="globe" data-icon-size="12"></span> Preview</button>
+    <button onclick="mobileFocusPanel('agent')" class="mobile-tab-btn" id="mTabAgent"><span data-icon="cpu" data-icon-size="12"></span> Agente IA</button>
+    <button onclick="openMobilePermissionsModal()" class="mobile-tab-btn" id="mTabPerms"><span data-icon="mobile" data-icon-size="12"></span> Permissões</button>
+    <button onclick="if(window.TermWorkspace) TermWorkspace.openWorkspaceModal('gmail'); else openGoogleAccountModal();" class="mobile-tab-btn" id="mTabGoogle"><span data-icon="google" data-icon-size="12"></span> Google</button>
   </nav>
 
 </div>
@@ -769,15 +863,15 @@
 <aside class="models-drawer" id="modelsDrawer">
   <div class="drawer-header">
     <span>MODELOS & PROVEDORES</span>
-    <button class="btn" style="padding:2px 7px" onclick="toggleModelsDrawer()">×</button>
+    <button class="btn" style="padding:2px 7px" onclick="toggleModelsDrawer(false)">×</button>
   </div>
 
   <div class="drawer-scroll-body">
     <div style="font-size:11.5px;color:var(--text-dim)">Provedor Atual:</div>
     <select id="cfgProvider" onchange="onProviderSelectChanged(this.value)" style="background:var(--bg-input);border:1px solid var(--border);color:#fff;padding:6px;border-radius:5px;font-family:inherit;width:100%">
       <option value="auto">Auto (Cascata com Fallback)</option>
-      <option value="gemini">Google Gemini (Oficial @google/genai)</option>
-      <option value="zen" selected>OpenCode Zen (Free & Comunitário)</option>
+      <option value="gemini" selected>Google Gemini (Oficial @google/genai)</option>
+      <option value="zen">OpenCode Zen (Free & Comunitário)</option>
       <option value="pollinations">Pollinations.ai (100% Free)</option>
       <option value="groq">Groq (Ultra-rápido Llama 3.3)</option>
       <option value="openrouter">OpenRouter (Multi-modelos)</option>
@@ -791,7 +885,7 @@
 
     <div style="margin-top:6px">
       <label style="font-size:11px;color:var(--text-dim)">Modelo Específico:</label>
-      <input id="cfgModel" placeholder="ex: gemini-3.8-flash, llama-3.3-70b" style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:#fff;padding:6px;border-radius:4px;margin-top:4px">
+      <input id="cfgModel" placeholder="ex: gemini-2.5-flash, gemini-2.5-pro" style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:#fff;padding:6px;border-radius:4px;margin-top:4px">
     </div>
 
     <div style="display:flex;gap:6px;margin-top:6px">
@@ -805,29 +899,25 @@
     </div>
 
     <div class="provider-list-section">
-      <div class="provider-row active" onclick="setQuickProvider('zen')">
-        <span class="provider-icon-badge">⚡</span>
-        <div><b>OpenCode</b><div style="font-size:10px;color:var(--text-dim)">Free Community Models</div></div>
-      </div>
-      <div class="provider-row" onclick="setQuickProvider('gemini')">
-        <span class="provider-icon-badge">🤖</span>
-        <div><b>Google Gemini</b><div style="font-size:10px;color:var(--text-dim)">gemini-3.8-flash / 3.1-pro</div></div>
-      </div>
-      <div class="provider-row" onclick="setQuickProvider('pollinations')">
-        <span class="provider-icon-badge">🌸</span>
-        <div><b>Pollinations</b><div style="font-size:10px;color:var(--text-dim)">100% Free & Sem Chave</div></div>
+      <div class="provider-row active" onclick="setQuickProvider('gemini')">
+        <span class="provider-icon-badge" data-icon="gemini" data-icon-size="18"></span>
+        <div><b>Google Gemini</b><div style="font-size:10px;color:var(--text-dim)">gemini-2.5-flash / gemini-2.5-pro</div></div>
       </div>
       <div class="provider-row" onclick="setQuickProvider('groq')">
-        <span class="provider-icon-badge">⚡</span>
+        <span class="provider-icon-badge" data-icon="groq" data-icon-size="18"></span>
         <div><b>Groq</b><div style="font-size:10px;color:var(--text-dim)">Llama 3.3 70B Instantâneo</div></div>
       </div>
+      <div class="provider-row" onclick="setQuickProvider('zen')">
+        <span class="provider-icon-badge" data-icon="cpu" data-icon-size="18"></span>
+        <div><b>OpenCode</b><div style="font-size:10px;color:var(--text-dim)">Free Community Models</div></div>
+      </div>
       <div class="provider-row" onclick="setQuickProvider('openrouter')">
-        <span class="provider-icon-badge">🌐</span>
+        <span class="provider-icon-badge" data-icon="globe" data-icon-size="18"></span>
         <div><b>OpenRouter</b><div style="font-size:10px;color:var(--text-dim)">Claude, GPT-4o, DeepSeek</div></div>
       </div>
       <div class="provider-row" onclick="setQuickProvider('ollama')">
-        <span class="provider-icon-badge">🦙</span>
-        <div><b>Ollama</b><div style="font-size:10px;color:var(--text-dim)">Local (:11434)</div></div>
+        <span class="provider-icon-badge" data-icon="terminal" data-icon-size="18"></span>
+        <div><b>Ollama</b><div style="font-size:10px;color:var(--text-dim)">Localhost (:11434)</div></div>
       </div>
     </div>
   </div>
@@ -874,6 +964,400 @@
      ═════════════════════════════════════════════════════════════════ -->
 <div id="diffModal" class="hidden"></div>
 
+<!-- ═════════════════════════════════════════════════════════════════
+     9. GOOGLE ACCOUNT & DRIVE MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="googleAccountModal" onclick="if(event.target===this) closeGoogleAccountModal()">
+  <div class="command-palette" style="max-width:540px;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span data-icon="google" data-icon-size="20"></span>
+        <b style="font-size:14px">Conta Google & Serviços Cloud</b>
+      </div>
+      <button class="btn btn-sm" onclick="closeGoogleAccountModal()" title="Fechar (×)">✕</button>
+    </div>
+
+    <div id="googleModalBody">
+      <!-- Dynamic Profile or Login Form -->
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     10. MOBILE PERMISSIONS MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="mobilePermissionsModal" onclick="if(event.target===this) closeMobilePermissionsModal()">
+  <div class="command-palette" style="max-width:540px;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span data-icon="mobile" data-icon-size="18"></span>
+        <b style="font-size:14px">Permissões de Celular & Dispositivo</b>
+      </div>
+      <button class="btn btn-sm" onclick="closeMobilePermissionsModal()" title="Fechar (×)">✕</button>
+    </div>
+
+    <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px">
+      Gerencie as permissões nativas para microfone, câmera, arquivos e notificações para funcionamento pleno em celulares.
+    </div>
+
+    <div id="mobilePermsList" style="display:flex;flex-direction:column;gap:8px">
+      <!-- Dynamic Permissions -->
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     11. DEVICE DETECTION PROMPT MODAL (PC ou Mobile)
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="deviceDetectionModal" onclick="if(event.target===this) closeDevicePromptModal()">
+  <div class="device-prompt-card">
+    <div class="device-prompt-header">
+      <div style="display:flex;gap:6px">
+        <span data-icon="desktop" data-icon-size="22"></span>
+        <span data-icon="mobile" data-icon-size="22"></span>
+      </div>
+      <div>
+        <b style="font-size:14.5px;color:#fff">Configuração de Experiência</b>
+        <div style="font-size:11.5px;color:var(--text-muted)">Você está acessando pelo PC ou Mobile?</div>
+      </div>
+      <span class="device-prompt-badge" id="detectedBadge">Detectado: PC</span>
+    </div>
+
+    <p style="font-size:12px;color:var(--text-dim);line-height:1.5;margin-bottom:12px">
+      O TermChat ajusta a interface automaticamente. No modo <b>Mobile</b>, a visualização é totalmente comprimida em painéis touch-friendly e barra de navegação rápida. No <b>Desktop</b>, você tem a IDE completa multi-janelas.
+    </p>
+
+    <div class="device-options-grid">
+      <button class="device-opt-btn" id="btnChooseMobile" onclick="applyDeviceMode('mobile')">
+        <span data-icon="mobile" data-icon-size="28" style="color:var(--accent-cyan)"></span>
+        <b style="font-size:13px;color:var(--accent-cyan)">Modo Mobile</b>
+        <span style="font-size:10.5px;color:var(--text-dim)">Interface Comprimida & Touch</span>
+      </button>
+
+      <button class="device-opt-btn" id="btnChooseDesktop" onclick="applyDeviceMode('desktop')">
+        <span data-icon="desktop" data-icon-size="28" style="color:var(--accent-teal)"></span>
+        <b style="font-size:13px;color:var(--accent-teal)">Modo Desktop</b>
+        <span style="font-size:10.5px;color:var(--text-dim)">IDE Multi-painel & Completa</span>
+      </button>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11.5px;color:var(--text-dim)">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="chkRememberDevice" checked> Lembrar minha preferência
+      </label>
+      <button class="btn btn-sm" onclick="closeDevicePromptModal()">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     12. SENSITIVE ACTION APPROVAL MODAL (Zero-Trust Security)
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="sensitiveApprovalModal">
+  <div class="command-palette" style="max-width:500px;padding:20px;border-left:4px solid var(--accent-amber)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span data-icon="alert" data-icon-size="24" style="color:var(--accent-amber)"></span>
+      <div>
+        <b style="font-size:14px;color:#fff" id="approvalActionTitle">Confirmação de Ação Sensível</b>
+        <div style="font-size:11.5px;color:var(--text-muted)" id="approvalActionDesc">O agente solicita sua aprovação.</div>
+      </div>
+    </div>
+    <pre id="approvalActionDetails" style="background:var(--bg-darker);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:var(--font-mono);font-size:11px;color:var(--accent-cyan);max-height:140px;overflow-y:auto;margin-bottom:14px"></pre>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="TermIntegrations.rejectSensitiveApproval()">✕ Cancelar</button>
+      <button class="btn btn-primary" onclick="TermIntegrations.confirmSensitiveApproval()">✓ Aprovar Ação</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     13. CAMERA & DEVICE HARDWARE MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="cameraModal" onclick="if(event.target===this) TermDevices.closeCameraModal()">
+  <div class="command-palette" style="max-width:540px;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span data-icon="camera" data-icon-size="16"></span>
+        <b style="font-size:13.5px">Captura de Câmera & Dispositivo</b>
+      </div>
+      <button class="btn btn-sm" onclick="TermDevices.closeCameraModal()">✕</button>
+    </div>
+    <div style="background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;display:flex;justify-content:center">
+      <video id="cameraVideo" autoplay playsinline style="width:100%;max-height:280px;object-fit:cover"></video>
+    </div>
+    <div style="display:flex;justify-content:space-between">
+      <button class="btn btn-sm" onclick="TermDevices.closeCameraModal()">Fechar</button>
+      <button class="btn btn-primary" onclick="TermDevices.captureSnapshot()">Capturar Foto & Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     14. GOOGLE MAPS PLATFORM MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="googleMapsModal" onclick="if(event.target===this) TermMaps.closeMapsModal()">
+  <div class="command-palette" style="max-width:760px;padding:18px;max-height:90vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span data-icon="gmaps" data-icon-size="20"></span>
+        <div>
+          <b style="font-size:14px;color:#fff">Google Maps Platform</b>
+          <div style="font-size:10.5px;color:var(--accent-teal)">Places • Directions • Geocoding • Street View</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" onclick="TermMaps.locateUser()">Meu GPS</button>
+        <button class="btn btn-sm btn-primary" onclick="TermMaps.exportGeoJSONToEditor()">Exportar GeoJSON</button>
+        <button class="btn btn-sm" onclick="TermMaps.closeMapsModal()">✕</button>
+      </div>
+    </div>
+
+    <!-- Search & Routing Bar -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="display:flex;gap:4px">
+        <input class="ide-input-small" id="gmapsSearchInput" placeholder="Buscar endereço ou local..." onkeydown="if(event.key==='Enter') TermMaps.searchAddress(this.value)" style="flex:1">
+        <button class="btn btn-sm" onclick="TermMaps.searchAddress($('gmapsSearchInput').value)"><span data-icon="search" data-icon-size="12"></span></button>
+      </div>
+      <div style="display:flex;gap:4px">
+        <input class="ide-input-small" id="gmapsOriginInput" placeholder="Origem..." style="flex:1">
+        <input class="ide-input-small" id="gmapsDestInput" placeholder="Destino..." style="flex:1">
+        <button class="btn btn-sm btn-primary" onclick="TermMaps.calculateRoute($('gmapsOriginInput').value, $('gmapsDestInput').value)">Calcular Rota</button>
+      </div>
+    </div>
+
+    <div id="gmapsRouteResult" style="margin-bottom:8px"></div>
+
+    <!-- Map Stage & Markers Split -->
+    <div style="display:grid;grid-template-columns:1fr 220px;gap:10px;height:340px;margin-bottom:10px">
+      <div id="gmapsModalMapElement" style="width:100%;height:100%;border-radius:6px;overflow:hidden;border:1px solid var(--border)"></div>
+      <div style="display:flex;flex-direction:column;gap:6px;background:var(--bg-darker);border:1px solid var(--border);border-radius:6px;padding:8px;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--text-main)">
+          <span>Marcadores Pin</span>
+          <button class="btn btn-sm" style="padding:1px 5px;font-size:9.5px" onclick="TermMaps.clearMarkers()">Limpar</button>
+        </div>
+        <div id="gmapsMarkersList" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     15. GOOGLE WORKSPACE SUITE MODAL (Gmail, Chat, Docs, Forms, Drive)
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="googleWorkspaceModal" onclick="if(event.target===this) TermWorkspace.closeWorkspaceModal()">
+  <div class="command-palette" style="max-width:820px;padding:18px;max-height:92vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span data-icon="google" data-icon-size="22"></span>
+        <div>
+          <b style="font-size:14.5px;color:#fff">Google Workspace Enterprise Suite</b>
+          <div style="font-size:10.5px;color:var(--text-muted)">Gmail • Google Chat • Google Docs • Google Forms • Google Drive</div>
+        </div>
+      </div>
+      <button class="btn btn-sm" onclick="TermWorkspace.closeWorkspaceModal()">✕</button>
+    </div>
+
+    <!-- Suite Subtabs -->
+    <div class="gws-subtabs">
+      <button class="gws-tab-btn active" id="gwsTab_gmail" onclick="TermWorkspace.switchWorkspaceTab('gmail')"><span data-icon="gmail" data-icon-size="14"></span> Gmail</button>
+      <button class="gws-tab-btn" id="gwsTab_chat" onclick="TermWorkspace.switchWorkspaceTab('chat')"><span data-icon="gchat" data-icon-size="14"></span> Google Chat</button>
+      <button class="gws-tab-btn" id="gwsTab_docs" onclick="TermWorkspace.switchWorkspaceTab('docs')"><span data-icon="gdocs" data-icon-size="14"></span> Google Docs</button>
+      <button class="gws-tab-btn" id="gwsTab_forms" onclick="TermWorkspace.switchWorkspaceTab('forms')"><span data-icon="gforms" data-icon-size="14"></span> Google Forms</button>
+      <button class="gws-tab-btn" id="gwsTab_drive" onclick="TermWorkspace.switchWorkspaceTab('drive')"><span data-icon="gdrive" data-icon-size="14"></span> Google Drive</button>
+    </div>
+
+    <!-- View 1: Gmail -->
+    <div id="gwsView_gmail" style="display:flex;flex-direction:column;gap:10px;flex:1;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:700;color:#fff">Caixa de Entrada Gmail</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-primary" onclick="TermWorkspace.openComposeModal()">Escrever E-mail</button>
+          <button class="btn btn-sm" onclick="TermWorkspace.loadGmail()">Atualizar</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;height:340px">
+        <div id="gmailMessagesList" style="overflow-y:auto;background:var(--bg-darker);border:1px solid var(--border);border-radius:6px"></div>
+        <div id="gmailMessageDetail" style="overflow-y:auto;background:var(--bg-darker);border:1px solid var(--border);border-radius:6px;padding:12px">
+          <div style="color:var(--text-dim);text-align:center;padding:40px 10px">Selecione um e-mail para visualizar detalhes.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View 2: Google Chat -->
+    <div id="gwsView_chat" class="hidden" style="display:grid;grid-template-columns:220px 1fr;gap:10px;height:380px">
+      <div style="display:flex;flex-direction:column;gap:6px;background:var(--bg-darker);border:1px solid var(--border);border-radius:6px;padding:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:#fff">
+          <span>Espaços Chat</span>
+          <button class="btn btn-sm" onclick="TermWorkspace.createNewSpacePrompt()">+ Espaço</button>
+        </div>
+        <div id="gchatSpacesList" style="overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;background:var(--bg-darker);border:1px solid var(--border);border-radius:6px;padding:8px">
+        <div id="gchatMessagesFeed" style="flex:1;overflow-y:auto;padding-right:4px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:6px">
+          <input class="ide-input-small" id="gchatMessageInput" placeholder="Mensagem para o espaço do Google Chat..." onkeydown="if(event.key==='Enter') TermWorkspace.sendChatMessage()" style="flex:1">
+          <button class="btn btn-sm btn-primary" onclick="TermWorkspace.sendChatMessage()">Enviar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View 3: Google Docs -->
+    <div id="gwsView_docs" class="hidden" style="display:flex;flex-direction:column;gap:10px;height:380px;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:700;color:#fff">Documentos Google Docs</span>
+        <button class="btn btn-sm btn-primary" onclick="TermWorkspace.createNewDocFromCurrentCode()">Criar Documento do Código Atual</button>
+      </div>
+      <div id="gdocsList" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    </div>
+
+    <!-- View 4: Google Forms -->
+    <div id="gwsView_forms" class="hidden" style="display:flex;flex-direction:column;gap:10px;height:380px;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:700;color:#fff">Formulários & Pesquisas Google Forms</span>
+        <button class="btn btn-sm btn-primary" onclick="TermWorkspace.createNewFormPrompt()">+ Novo Formulário</button>
+      </div>
+      <div id="gformsList" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    </div>
+
+    <!-- View 5: Google Drive -->
+    <div id="gwsView_drive" class="hidden" style="display:flex;flex-direction:column;gap:10px;height:380px;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:700;color:#fff">Arquivos & Backups no Google Drive</span>
+        <button class="btn btn-sm btn-primary" onclick="saveToGoogleDrive()">Backup Imediato</button>
+      </div>
+      <div id="gdriveFilesList" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     16. GMAIL COMPOSE MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="gmailComposeModal" onclick="if(event.target===this) TermWorkspace.closeComposeModal()">
+  <div class="command-palette" style="max-width:540px;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span data-icon="gmail" data-icon-size="16"></span>
+        <b style="font-size:13.5px">Novo E-mail (Gmail API)</b>
+      </div>
+      <button class="btn btn-sm" onclick="TermWorkspace.closeComposeModal()">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <input class="ide-input-small" id="gmailComposeTo" placeholder="Para: dev@empresa.com">
+      <input class="ide-input-small" id="gmailComposeSubject" placeholder="Assunto: Atualização TermChat">
+      <textarea class="agent-textarea" id="gmailComposeBody" rows="6" placeholder="Mensagem..."></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:10px;color:var(--text-dim)">Autenticado como: papaecodelta9@gmail.com</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="TermWorkspace.closeComposeModal()">Cancelar</button>
+          <button class="btn btn-sm btn-primary" onclick="TermWorkspace.sendGmailFromCompose()">Enviar E-mail</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     17. CLOUD SQL POSTGRESQL STUDIO MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="cloudSqlModal" onclick="if(event.target===this) TermCloudSql.closeCloudSqlModal()">
+  <div class="command-palette" style="max-width:800px;padding:18px;max-height:92vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span data-icon="cloudsql" data-icon-size="22"></span>
+        <div>
+          <b style="font-size:14px;color:#fff">Cloud SQL PostgreSQL Studio</b>
+          <div style="font-size:10.5px;color:var(--accent-cyan)">GCP Project: original-mission-k5xj8 | Instance: ai-studio-7a30a4e2</div>
+        </div>
+      </div>
+      <button class="btn btn-sm" onclick="TermCloudSql.closeCloudSqlModal()">✕</button>
+    </div>
+
+    <div id="cloudSqlStatusBanner"></div>
+
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:10px;margin-bottom:10px">
+      <!-- Tables column -->
+      <div style="background:var(--bg-darker);border:1px solid var(--border);border-radius:6px;padding:8px;max-height:300px;overflow-y:auto">
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px">Tabelas Relacionais</div>
+        <div id="cloudSqlTablesList" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+
+      <!-- SQL Query Editor & Output -->
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:6px">
+          <input class="ide-input-small" id="cloudSqlQueryInput" placeholder="SELECT * FROM users;" value="SELECT * FROM users" style="flex:1;font-family:var(--font-mono)">
+          <button class="btn btn-sm btn-primary" onclick="TermCloudSql.executeQuery()">Executar SQL</button>
+        </div>
+        <div id="cloudSqlQueryResults" style="background:var(--bg-darker);border:1px solid var(--border);border-radius:6px;padding:8px;min-height:220px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     18. ADVANCED AI PROVIDERS & MODELS CONFIG MODAL
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="aiModelsModal" onclick="if(event.target===this) closeModelsDrawer()">
+  <div class="command-palette" style="max-width:640px;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span data-icon="sparkles" data-icon-size="20" style="color:var(--accent-cyan)"></span>
+        <div>
+          <b style="font-size:14.5px;color:#fff">Configuração Avançada de Provedores & Modelos IA</b>
+          <div style="font-size:11px;color:var(--text-muted)">Gemini, Meta Llama, DeepSeek, Qwen, Claude, GPT-4o e Auto-Routing com Fallback</div>
+        </div>
+      </div>
+      <button class="btn btn-sm" onclick="closeModelsDrawer()">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Provedor de IA:</label>
+        <select id="cfgProvider" class="ide-input-small" onchange="onProviderSelectChanged(this.value)" style="padding:6px;background:var(--bg-panel);color:#fff">
+          <option value="auto">⚡ Auto-Routing Inteligente (Cascata com Fallback)</option>
+          <option value="gemini">✨ Google Gemini (Oficial AI Studio)</option>
+          <option value="meta">🦙 Meta Llama (Llama 3.3 70B / 8B)</option>
+          <option value="deepseek">🧠 DeepSeek AI (DeepSeek-R1 & V3)</option>
+          <option value="qwen">🌐 Alibaba Qwen (2.5 Coder 32B)</option>
+          <option value="anthropic">🎭 Anthropic Claude (3.5 Sonnet)</option>
+          <option value="openai">🤖 OpenAI (GPT-4o / Mini)</option>
+          <option value="mistral">🌪️ Mistral AI (Codestral / Large)</option>
+          <option value="pollinations">🌍 Pollinations.ai (100% Free / Sem Chave)</option>
+        </select>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Modelo Específico:</label>
+        <select id="cfgModel" class="ide-input-small" style="padding:6px;background:var(--bg-panel);color:#fff">
+          <option value="gemini-3.8-flash">gemini-3.8-flash (Padrão Recomendado)</option>
+          <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
+          <option value="meta-llama/llama-3.3-70b-instruct">meta-llama/llama-3.3-70b-instruct</option>
+          <option value="deepseek/deepseek-r1">deepseek/deepseek-r1</option>
+          <option value="qwen/qwen-2.5-coder-32b-instruct">qwen/qwen-2.5-coder-32b-instruct</option>
+          <option value="claude-3-5-sonnet-latest">claude-3-5-sonnet-latest</option>
+          <option value="gpt-4o">gpt-4o</option>
+        </select>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:11.5px;font-weight:700;color:var(--text-main)">Chave de API (Opcional se configurado no servidor):</label>
+        <input class="ide-input-small" id="cfgKey" type="password" placeholder="Insira sua API Key (ex: AIzaSy... ou sk-...)" style="padding:6px">
+        <span style="font-size:10px;color:var(--text-dim)">As chaves são armazenadas com segurança localmente e enviadas criptografadas apenas para as APIs oficiais.</span>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <div id="cfgMsg" style="font-size:11.5px;color:var(--accent-teal)"></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="testAI()">Testar Conexão</button>
+          <button class="btn btn-sm btn-primary" onclick="saveModelsDrawer()">Salvar Alterações</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Hidden inputs for file import / system compatibility -->
 <input type="file" id="impFile" accept="application/json" class="hidden" onchange="importCfg(this)">
 <div id="status" class="hidden"><span class="dot"></span>boot ok</div>
@@ -881,14 +1365,21 @@
 <div id="gitCommitList" class="hidden"></div>
 
 <!-- Application Scripts with Cache-Busting Version Query -->
-<script src="js/auth.js?v=2.1.0"></script>
-<script src="js/vfs.js?v=2.1.0"></script>
-<script src="js/editor.js?v=2.1.0"></script>
-<script src="js/terminal.js?v=2.1.0"></script>
-<script src="js/git.js?v=2.1.0"></script>
-<script src="js/agents.js?v=2.1.0"></script>
-<script src="js/voice.js?v=2.1.0"></script>
-<script src="js/logs.js?v=2.1.0"></script>
-<script src="js/app.js?v=2.1.0"></script>
+<script src="js/icons.js?v=2.2.0"></script>
+<script src="js/auth.js?v=2.2.0"></script>
+<script src="js/firebase-db.js?v=2.2.0"></script>
+<script src="js/devices.js?v=2.2.0"></script>
+<script src="js/integrations.js?v=2.2.0"></script>
+<script src="js/vfs.js?v=2.2.0"></script>
+<script src="js/editor.js?v=2.2.0"></script>
+<script src="js/terminal.js?v=2.2.0"></script>
+<script src="js/git.js?v=2.2.0"></script>
+<script src="js/agents.js?v=2.2.0"></script>
+<script src="js/gmaps.js?v=2.2.0"></script>
+<script src="js/gworkspace.js?v=2.2.0"></script>
+<script src="js/cloudsql.js?v=2.2.0"></script>
+<script src="js/voice.js?v=2.2.0"></script>
+<script src="js/logs.js?v=2.2.0"></script>
+<script src="js/app.js?v=2.2.0"></script>
 </body>
 </html>

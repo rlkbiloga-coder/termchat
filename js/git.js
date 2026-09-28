@@ -28,6 +28,26 @@ class TermGitManager {
     this.initOAuthListener();
   }
 
+  async safeJson(res) {
+    try {
+      const text = await res.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        const isHtml = text.trim().startsWith('<');
+        const err = isHtml ? `Servidor retornou resposta HTML (Status ${res.status})` : text.slice(0, 100);
+        return { ok: false, status: res.status, error: err, raw: text };
+      }
+      if (!res.ok && data.ok === undefined) {
+        data.ok = false;
+      }
+      return data;
+    } catch (netErr) {
+      return { ok: false, error: netErr.message || 'Erro de conexão' };
+    }
+  }
+
   initOAuthListener() {
     window.addEventListener('message', (event) => {
       // Validate origin
@@ -86,7 +106,7 @@ class TermGitManager {
     try {
       const redirectUri = `${window.location.origin}/auth/callback`;
       const res = await fetch(`/api/auth/github/url?redirect_uri=${encodeURIComponent(redirectUri)}`);
-      const data = await res.json();
+      const data = await this.safeJson(res);
 
       if (!data.configured) {
         // Offer manual token fallback if client secret not yet configured
@@ -121,7 +141,7 @@ class TermGitManager {
       const res = await fetch('/api/github/user', {
         headers: { 'Authorization': `Bearer ${patToken}` }
       });
-      const data = await res.json();
+      const data = await this.safeJson(res);
       if (!res.ok || !data.ok) {
         throw new Error(data.error || 'Token inválido ou expirado.');
       }
@@ -141,7 +161,7 @@ class TermGitManager {
     const res = await fetch('/api/github/user', {
       headers: { 'Authorization': `Bearer ${this.token}` }
     });
-    const data = await res.json();
+    const data = await this.safeJson(res);
     if (data.ok) {
       this.user = data.user;
       localStorage.setItem(this.userKey, JSON.stringify(data.user));
@@ -155,7 +175,7 @@ class TermGitManager {
     const res = await fetch('/api/github/repos', {
       headers: { 'Authorization': `Bearer ${this.token}` }
     });
-    const data = await res.json();
+    const data = await this.safeJson(res);
     if (!res.ok || !data.ok) {
       throw new Error(data.error || 'Falha ao buscar repositórios.');
     }
@@ -181,7 +201,7 @@ class TermGitManager {
       body: JSON.stringify({ owner, repo, branch })
     });
 
-    const data = await res.json();
+    const data = await this.safeJson(res);
     if (!res.ok || !data.ok) {
       throw new Error(data.error || 'Falha ao baixar arquivos do GitHub.');
     }
@@ -257,7 +277,7 @@ class TermGitManager {
       })
     });
 
-    const data = await res.json();
+    const data = await this.safeJson(res);
     if (!res.ok || !data.ok) {
       throw new Error(data.error || 'Falha ao sincronizar arquivos com GitHub.');
     }
@@ -285,7 +305,7 @@ class TermGitManager {
       body: JSON.stringify({ name, description, private: isPrivate })
     });
 
-    const data = await res.json();
+    const data = await this.safeJson(res);
     if (!res.ok || !data.ok) {
       throw new Error(data.error || 'Falha ao criar repositório no GitHub.');
     }
@@ -438,7 +458,7 @@ class TermGitManager {
       headers
     });
 
-    const data = await res.json();
+    const data = await this.safeJson(res);
     if (!res.ok || !data.ok) {
       throw new Error(data.error || 'Falha ao auditar repositório.');
     }
@@ -479,7 +499,7 @@ class TermGitManager {
       })
     });
 
-    const data = await res.json();
+    const data = await this.safeJson(res);
     if (!res.ok || !data.ok) {
       throw new Error(data.error || 'Falha ao executar Code Review.');
     }

@@ -29,15 +29,19 @@ window.cfg = cfg;
 
 // Permissions manager
 const PERMS = {
-  notifications: { label: 'Notificações', ask: () => Notification.requestPermission() },
-  geolocation: { label: 'Localização', ask: () => new Promise(r => navigator.geolocation.getCurrentPosition(() => r('granted'), () => r('denied'), { timeout: 8000 })) },
+  notifications: { label: 'Notificações', ask: async () => { try { return window.Notification ? await Notification.requestPermission() : 'denied'; } catch(e) { return 'denied'; } } },
+  geolocation: { label: 'Localização', ask: () => new Promise(resolve => { if (!navigator.geolocation) return resolve('denied'); navigator.geolocation.getCurrentPosition(() => resolve('granted'), () => resolve('denied'), { timeout: 5000 }); }) },
   clipboard: { label: 'Área de transferência', ask: async () => { try { await navigator.clipboard.writeText('ok'); return 'granted'; } catch (e) { return 'denied'; } } }
 };
 
 function permState(p) {
-  if (p === 'notifications') return (window.Notification ? Notification.permission : 'unsupported');
-  if (p === 'geolocation') return (navigator.geolocation ? (navigator.permissions ? queryPerm(p) : 'prompt') : 'unsupported');
-  if (p === 'clipboard') return (navigator.clipboard ? (navigator.permissions ? queryPerm(p) : 'prompt') : 'unsupported');
+  try {
+    if (p === 'notifications') return (window.Notification ? Notification.permission : 'unsupported');
+    if (p === 'geolocation') return (navigator.geolocation ? 'prompt' : 'unsupported');
+    if (p === 'clipboard') return (navigator.clipboard ? 'prompt' : 'unsupported');
+  } catch (e) {
+    return 'unsupported';
+  }
   return 'unsupported';
 }
 
@@ -51,13 +55,17 @@ async function queryPerm(p) {
 }
 
 async function ensurePerm(p) {
-  if (!PERMS[p]) return false;
-  let st = permState(p);
-  if (st === 'granted') return true;
-  if (st !== 'prompt') return false;
-  st = await PERMS[p].ask();
-  renderPerms();
-  return st === 'granted';
+  try {
+    if (!PERMS[p]) return false;
+    let st = permState(p);
+    if (st === 'granted') return true;
+    if (st !== 'prompt') return false;
+    st = await PERMS[p].ask();
+    if (typeof renderPerms === 'function') renderPerms();
+    return st === 'granted';
+  } catch (e) {
+    return false;
+  }
 }
 
 // Plugins
@@ -268,8 +276,12 @@ async function handle(raw) {
   if (!text) return;
 
   print('user', text);
-  history.push({ role: 'user', content: text });
+  const userMsg = { role: 'user', content: text, timestamp: Date.now() };
+  history.push(userMsg);
   store.set('hist', history.slice(-40));
+  if (window.TermFirebase) {
+    window.TermFirebase.saveChatMessage(userMsg);
+  }
 
   if (text.startsWith('/')) {
     const sp = text.indexOf(' ');
@@ -388,8 +400,12 @@ async function handle(raw) {
   try {
     const res = await askAI(text);
     print('ai', res.text);
-    history.push({ role: 'assistant', content: res.text });
+    const aiMsg = { role: 'assistant', content: res.text, provider: res.provider, timestamp: Date.now() };
+    history.push(aiMsg);
     store.set('hist', history.slice(-40));
+    if (window.TermFirebase) {
+      window.TermFirebase.saveChatMessage(aiMsg);
+    }
   } catch (e) {
     print('err', 'Falha na resposta: ' + e.message);
   }
@@ -449,6 +465,7 @@ function selectActivity(act) {
     plugins: 'actBtnPlugins',
     agents: 'actBtnAgents',
     mcp: 'actBtnMcp',
+    integrations: 'actBtnIntegrations',
     deploy: 'actBtnDeploy',
     database: 'actBtnDb',
     config: 'actBtnConfig'
@@ -469,6 +486,7 @@ function selectActivity(act) {
     plugins: 'PLUGINS',
     agents: 'AGENTES IA',
     mcp: 'MCP TOOLS',
+    integrations: '40 INTEGRAÇÕES',
     deploy: 'DEPLOY',
     database: 'BANCO VIRTUAL',
     config: 'CONFIGURAÇÕES'
@@ -476,7 +494,7 @@ function selectActivity(act) {
   if ($('sidebarSectionTitle')) $('sidebarSectionTitle').textContent = titles[act] || 'EXPLORADOR';
 
   // Toggle subviews
-  const subviews = ['Explorer', 'Search', 'Git', 'Plugins', 'Agents', 'Mcp', 'Deploy', 'Database', 'Config'];
+  const subviews = ['Explorer', 'Search', 'Git', 'Plugins', 'Agents', 'Mcp', 'Integrations', 'Deploy', 'Database', 'Config'];
   subviews.forEach(s => {
     const el = $(`sidebar${s}View`);
     if (el) {
@@ -496,6 +514,8 @@ function selectActivity(act) {
     renderSidebarPlugins();
   } else if (act === 'agents') {
     renderSidebarAgents();
+  } else if (act === 'integrations') {
+    if (window.TermIntegrations) window.TermIntegrations.renderHub();
   } else if (act === 'database') {
     renderDbKeyValues();
   }
@@ -529,11 +549,12 @@ function toggleBottomDock(forceOpen = null) {
   const dock = $('ideBottomDock');
   if (!dock) return;
   if (forceOpen === true) {
+    dock.classList.remove('dock-hidden');
     dock.classList.remove('hidden');
   } else if (forceOpen === false) {
-    dock.classList.add('hidden');
+    dock.classList.add('dock-hidden');
   } else {
-    dock.classList.toggle('hidden');
+    dock.classList.toggle('dock-hidden');
   }
 }
 
@@ -1900,7 +1921,85 @@ function toggleTheme() {
 }
 
 function toggleLayoutMode() {
-  toggleMultiPaneDock();
+  const appCont = $('app-container');
+  const isCurrentlyMobile = appCont && appCont.classList.contains('mode-mobile-compressed');
+  applyDeviceMode(isCurrentlyMobile ? 'desktop' : 'mobile');
+}
+
+function openDevicePromptModal() {
+  const modal = $('deviceDetectionModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeDevicePromptModal() {
+  const modal = $('deviceDetectionModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function applyDeviceMode(mode) {
+  const appCont = $('app-container');
+  const remember = $('chkRememberDevice') ? $('chkRememberDevice').checked : true;
+
+  cfg.deviceMode = mode;
+  store.set('cfg', cfg);
+  if (remember) {
+    localStorage.setItem('tc_device_mode', mode);
+    localStorage.setItem('tc_device_prompt_seen', 'true');
+  }
+
+  if (mode === 'mobile') {
+    if (appCont) appCont.classList.add('mode-mobile-compressed');
+    mobileFocusPanel('editor');
+    if (window.TermLogs) {
+      window.TermLogs.add('Layout', 'Interface comprimida para modo Mobile.', 'info');
+    }
+  } else {
+    if (appCont) appCont.classList.remove('mode-mobile-compressed');
+    // Ensure all desktop panels are visible
+    toggleSidebar(true);
+    toggleAgentPanel(true);
+    toggleBottomDock(true);
+    if (window.TermLogs) {
+      window.TermLogs.add('Layout', 'Interface expandida para modo Desktop.', 'info');
+    }
+  }
+
+  // Persist preference to Firestore
+  if (window.TermFirebase) {
+    window.TermFirebase.saveProjectSettings(cfg);
+  }
+
+  closeDevicePromptModal();
+}
+
+function initDeviceDetection() {
+  const savedMode = localStorage.getItem('tc_device_mode');
+  const promptSeen = localStorage.getItem('tc_device_prompt_seen');
+  const isMobileDetected = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 900;
+
+  const detectedBadge = $('detectedBadge');
+  const btnMobile = $('btnChooseMobile');
+  const btnDesktop = $('btnChooseDesktop');
+
+  if (detectedBadge) {
+    detectedBadge.textContent = isMobileDetected ? 'Detectado: Mobile 📱' : 'Detectado: PC / Desktop 💻';
+  }
+
+  if (isMobileDetected) {
+    if (btnMobile) btnMobile.classList.add('highlighted');
+  } else {
+    if (btnDesktop) btnDesktop.classList.add('highlighted');
+  }
+
+  if (savedMode) {
+    applyDeviceMode(savedMode);
+  } else if (isMobileDetected) {
+    applyDeviceMode('mobile');
+    if (!promptSeen) openDevicePromptModal();
+  } else {
+    applyDeviceMode('desktop');
+    if (!promptSeen && window.innerWidth < 1100) openDevicePromptModal();
+  }
 }
 
 function mobileFocusPanel(panel) {
@@ -1910,10 +2009,51 @@ function mobileFocusPanel(panel) {
     editor: 'mTabEditor',
     dock: 'mTabDock',
     preview: 'mTabPreview',
-    agent: 'mTabAgent'
+    agent: 'mTabAgent',
+    audit: 'mTabAudit'
   };
   const btn = $(btnMap[panel]);
   if (btn) btn.classList.add('active');
+
+  const appCont = $('app-container');
+  const isMobileCompressed = appCont && appCont.classList.contains('mode-mobile-compressed');
+
+  if (isMobileCompressed) {
+    const sidebar = $('ideSidebar');
+    const editor = document.querySelector('.ide-center-workspace');
+    const agent = $('ideAgentPanel');
+    const dock = $('ideBottomDock');
+
+    // Remove active view from all
+    if (sidebar) sidebar.classList.remove('mobile-active-view');
+    if (editor) editor.classList.remove('mobile-active-view');
+    if (agent) agent.classList.remove('mobile-active-view');
+    if (dock) dock.classList.remove('mobile-active-view');
+
+    if (panel === 'sidebar') {
+      if (sidebar) sidebar.classList.add('mobile-active-view');
+    } else if (panel === 'editor') {
+      if (editor) editor.classList.add('mobile-active-view');
+    } else if (panel === 'dock') {
+      if (dock) {
+        dock.classList.add('mobile-active-view');
+        switchDockTab('terminal');
+      }
+    } else if (panel === 'preview') {
+      if (dock) {
+        dock.classList.add('mobile-active-view');
+        switchDockTab('preview');
+      }
+    } else if (panel === 'agent') {
+      if (agent) agent.classList.add('mobile-active-view');
+    } else if (panel === 'audit') {
+      if (dock) {
+        dock.classList.add('mobile-active-view');
+        switchDockTab('audit');
+      }
+    }
+    return;
+  }
 
   const canvas = $('ide-workspace');
   if (!canvas) return;
@@ -1932,6 +2072,8 @@ function mobileFocusPanel(panel) {
   } else if (panel === 'agent') {
     toggleAgentPanel(true);
     canvas.scrollTo({ left: 900, behavior: 'smooth' });
+  } else if (panel === 'audit') {
+    switchDockTab('audit');
   }
 }
 
@@ -2214,6 +2356,91 @@ async function suggestGitCommit() {
 // ═════════════════════════════════════════════════════════════════
 // SETTINGS, CONFIG & EXPORT
 // ═════════════════════════════════════════════════════════════════
+const PROVIDER_MODELS_MAP = {
+  gemini: [
+    { id: 'gemini-3.8-flash', name: 'gemini-3.8-flash (Padrão Recomendado)' },
+    { id: 'gemini-3.1-pro-preview', name: 'gemini-3.1-pro-preview (Avançado)' },
+    { id: 'gemini-3.1-flash-lite', name: 'gemini-3.1-flash-lite (Rápido)' },
+    { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash (Estável)' }
+  ],
+  meta: [
+    { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct' },
+    { id: 'meta-llama/llama-3.1-8b-instruct', name: 'Llama 3.1 8B Instruct' }
+  ],
+  deepseek: [
+    { id: 'deepseek/deepseek-r1', name: 'DeepSeek-R1 (Raciocínio Avançado)' },
+    { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat (V3)' }
+  ],
+  qwen: [
+    { id: 'qwen/qwen-2.5-coder-32b-instruct', name: 'Qwen 2.5 Coder 32B (Especialista)' }
+  ],
+  anthropic: [
+    { id: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet' },
+    { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku' }
+  ],
+  openai: [
+    { id: 'gpt-4o', name: 'GPT-4o (OpenAI)' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' }
+  ],
+  mistral: [
+    { id: 'codestral-latest', name: 'Codestral (Mistral Code)' },
+    { id: 'mistral-large-latest', name: 'Mistral Large' }
+  ],
+  pollinations: [
+    { id: 'openai', name: 'Pollinations OpenAI Free' },
+    { id: 'mistral', name: 'Pollinations Mistral Free' }
+  ],
+  auto: [
+    { id: 'gemini-3.8-flash', name: 'Auto-Routing (Gemini -> Pollinations)' }
+  ]
+};
+
+function toggleModelsDrawer() {
+  const modal = $('aiModelsModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    if ($('cfgProvider')) $('cfgProvider').value = cfg.provider || 'auto';
+    if ($('cfgKey')) $('cfgKey').value = cfg.key || '';
+    onProviderSelectChanged(cfg.provider || 'auto', cfg.model);
+  }
+}
+
+function closeModelsDrawer() {
+  const modal = $('aiModelsModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function onProviderSelectChanged(provider, selectedModel) {
+  const modelSelect = $('cfgModel');
+  if (!modelSelect) return;
+  const list = PROVIDER_MODELS_MAP[provider] || PROVIDER_MODELS_MAP.auto;
+  modelSelect.innerHTML = list.map(m => `<option value="${m.id}" ${selectedModel === m.id ? 'selected' : ''}>${m.name}</option>`).join('');
+  if (!selectedModel && list.length > 0) {
+    modelSelect.value = list[0].id;
+  }
+}
+
+function saveModelsDrawer() {
+  if ($('cfgProvider')) cfg.provider = $('cfgProvider').value;
+  if ($('cfgKey')) cfg.key = $('cfgKey').value.trim();
+  if ($('cfgModel')) cfg.model = $('cfgModel').value.trim();
+  store.set('cfg', cfg);
+  if ($('cfgMsg')) $('cfgMsg').textContent = 'Configurações de IA salvas ✓';
+  updateModelBadge();
+
+  if (window.TermFirebase) {
+    window.TermFirebase.saveProjectSettings(cfg);
+  }
+  setTimeout(() => closeModelsDrawer(), 800);
+}
+
+function updateModelBadge() {
+  const badge = $('currentModelBadge');
+  if (badge) {
+    badge.textContent = `${cfg.provider || 'auto'}:${cfg.model || 'gemini'}`;
+  }
+}
+
 function saveCfg() {
   if ($('cfgProvider')) cfg.provider = $('cfgProvider').value;
   if ($('cfgKey')) cfg.key = $('cfgKey').value.trim();
@@ -2221,6 +2448,10 @@ function saveCfg() {
   store.set('cfg', cfg);
   if ($('cfgMsg')) $('cfgMsg').textContent = 'Configurações salvas ✓';
   updateModelBadge();
+
+  if (window.TermFirebase) {
+    window.TermFirebase.saveProjectSettings(cfg);
+  }
 }
 
 async function testAI() {
@@ -2355,6 +2586,9 @@ window.saveCfg = saveCfg;
 window.testAI = testAI;
 window.toggleTheme = toggleTheme;
 window.toggleLayoutMode = toggleLayoutMode;
+window.applyDeviceMode = applyDeviceMode;
+window.openDevicePromptModal = openDevicePromptModal;
+window.closeDevicePromptModal = closeDevicePromptModal;
 window.mobileFocusPanel = mobileFocusPanel;
 window.formatCurrentCode = formatCurrentCode;
 window.duplicateCurrentLine = duplicateCurrentLine;
@@ -2415,7 +2649,63 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   updatePreview();
+
+  // Initialize Firebase Firestore & Auth
+  if (window.TermFirebase) {
+    window.TermFirebase.init();
+  }
+
+  // Initialize Device Detection (PC vs Mobile)
+  initDeviceDetection();
+
+  // Show update notification banner
+  if (window.TermLogs) {
+    window.TermLogs.add('System', '🚀 TermChat v2.2 atualizado com sucesso! +300 novos recursos, modelos Free AI, repositórios Git, linter Acorn em WebWorker e transições suaves ativos.', 'success');
+  }
+  setTimeout(() => {
+    const updateBanner = document.createElement('div');
+    updateBanner.id = 'updateBannerNotice';
+    updateBanner.style.cssText = 'position:fixed;top:50px;right:20px;z-index:99999;background:var(--bg-card);border:1px solid var(--accent-cyan);color:#fff;padding:14px 18px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.6);font-size:12px;display:flex;align-items:center;gap:14px;max-width:380px;animation:panelFadeSlideIn 0.3s ease';
+    updateBanner.innerHTML = `
+      <span style="font-size:24px">🎉</span>
+      <div style="flex:1">
+        <b>Plataforma Atualizada! (v2.2)</b>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:3px">300+ novos recursos, modelos de IA Open/Free, linter Acorn em background e transições suaves ativados.</div>
+      </div>
+      <button onclick="document.getElementById('updateBannerNotice').remove()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px">&times;</button>
+    `;
+    document.body.appendChild(updateBanner);
+    setTimeout(() => {
+      if (document.getElementById('updateBannerNotice')) document.getElementById('updateBannerNotice').remove();
+    }, 7000);
+  }, 1000);
 });
+
+// Sync callbacks from Firestore
+window.onFirestoreSettingsSync = function (settings) {
+  if (!settings) return;
+  if (settings.provider && $('cfgProvider')) {
+    cfg.provider = settings.provider;
+    $('cfgProvider').value = settings.provider;
+  }
+  if (settings.model && $('cfgModel')) {
+    cfg.model = settings.model;
+    $('cfgModel').value = settings.model;
+  }
+  updateModelBadge();
+};
+
+window.onFirestoreChatSync = function (msgs) {
+  if (!Array.isArray(msgs) || msgs.length === 0) return;
+  // If local history is empty, populate from Firestore
+  if (history.length === 0) {
+    msgs.forEach(m => {
+      history.push({ role: m.role, content: m.content });
+      print(m.role === 'assistant' ? 'ai' : m.role, m.content);
+    });
+    store.set('hist', history.slice(-40));
+  }
+};
 
 // Fallback init
 setTimeout(() => {

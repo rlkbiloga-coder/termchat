@@ -9,43 +9,43 @@ class TermAgentsManager {
     this.agents = {
       coder: {
         name: 'Coder Agent',
-        icon: '💻',
+        icon: 'code',
         role: 'Implementação de funcionalidades, algoritmos e código limpo',
         system: 'Você é o Agente Coder do TermChat. Você gera código limpo, moderno, modular e pronto para execução no navegador. Responda em português com explicações diretas.'
       },
       debugger: {
         name: 'Debugger Agent',
-        icon: '🐛',
+        icon: 'cpu',
         role: 'Análise de erros, depuração e correção de bugs',
         system: 'Você é o Agente Debugger do TermChat. Analise o código do usuário, identifique problemas de sintaxe, exceções ou comportamento inesperado e proponha correções precisas.'
       },
       architect: {
         name: 'Architect Agent',
-        icon: '🏛️',
+        icon: 'database',
         role: 'Estruturação de sistemas, design de API e modularidade',
         system: 'Você é o Agente Architect do TermChat. Seu foco é planejar a separação de responsabilidades, arquitetura de pastas, modelos de dados e fluxos escaláveis.'
       },
       uidesigner: {
         name: 'UI Designer Agent',
-        icon: '🎨',
+        icon: 'desktop',
         role: 'Design visual, responsividade mobile e temas modernos',
         system: 'Você é o Agente UI Designer do TermChat. Crie interfaces modernas, acessíveis, otimizadas para toque e mobile, com estética moderna cyberpunk e dark mode.'
       },
       security: {
         name: 'Security Agent',
-        icon: '🛡️',
+        icon: 'shield',
         role: 'Auditoria de segurança, CSP, XSS e proteção de secrets',
         system: 'Você é o Agente de Segurança do TermChat. Analise o código contra injeção de scripts, falhas de autenticação, vazamento de credenciais e boas práticas de sandbox.'
       },
       tester: {
         name: 'Tester Agent',
-        icon: '🧪',
+        icon: 'check',
         role: 'Geração de testes unitários e validação de casos de borda',
         system: 'Você é o Agente Tester do TermChat. Crie cenários de teste, asserções de validação e verifique se as funções cobrem casos normais e de borda.'
       },
       devops: {
         name: 'DevOps Agent',
-        icon: '🚀',
+        icon: 'terminal',
         role: 'Builds, automação, deploy e configuração de ambiente',
         system: 'Você é o Agente DevOps do TermChat. Crie scripts de automação, configuração de deploy para Vercel/Netlify/GitHub Pages e otimização de bundle.'
       }
@@ -317,23 +317,34 @@ btn.addEventListener('click', () => {
 
   async callAI(messages) {
     const cfg = window.cfg || {};
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: cfg.provider || 'auto',
-        model: cfg.model || '',
-        messages,
-        apiKey: cfg.key || ''
-      })
-    });
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: cfg.provider || 'auto',
+          model: cfg.model || '',
+          messages,
+          apiKey: cfg.key || ''
+        })
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `HTTP ${res.status}`);
+      const rawText = await res.text();
+      let data = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch (parseErr) {
+        throw new Error(rawText.trim().startsWith('<') ? 'Servidor retornou erro HTML (Gateway / 502)' : `Resposta inválida do servidor: ${rawText.slice(0, 100)}`);
+      }
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.detail || data.error || `Erro HTTP ${res.status}`);
+      }
+
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Erro de conexão com o servidor de IA');
     }
-
-    return await res.json();
   }
 }
 

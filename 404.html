@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TermChat — Redirecionando...</title>
+  <script>
+    // GitHub Pages SPA router redirect
+    const path = window.location.pathname.replace(/^\/termchat\/?/, '');
+    const query = window.location.search;
+    const hash = window.location.hash;
+    const redirectUrl = '/termchat/?path=' + encodeURIComponent(path) + (query ? '&' + query.slice(1) : '') + hash;
+    window.location.replace(redirectUrl);
+  </script>
+</head>
+<body style="background:#06090f;color:#e1e7ec;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+  <div style="text-align:center">
+    <h2>TermChat Web IDE</h2>
+    <p>Redirecionando para a aplicação...</p>
+    <a href="./" style="color:#00e5ff;text-decoration:none">Clique aqui se não for redirecionado</a>
+  </div>
+</body>
+</html>

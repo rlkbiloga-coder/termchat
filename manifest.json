@@ -1,18 +1,52 @@
 {
-  "name": "TermChat",
+  "id": "/",
+  "name": "TermChat Web IDE & AI Platform",
   "short_name": "TermChat",
-  "description": "Chatbot leve estilo terminal com Explorar de plugins gratuitos",
+  "description": "IDE web avançada com IA, editor de código, explorador de arquivos, terminal sandbox, GitHub e Google Workspace.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#0b0f14",
-  "theme_color": "#0b0f14",
+  "orientation": "any",
+  "background_color": "#06090f",
+  "theme_color": "#06090f",
   "lang": "pt-BR",
+  "categories": ["developer-tools", "productivity", "utilities"],
   "icons": [
     { "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Novo Arquivo",
+      "short_name": "Novo",
+      "description": "Criar novo arquivo no editor",
+      "url": "./index.html?action=newfile",
+      "icons": [{ "src": "icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Terminal Sandbox",
+      "short_name": "Terminal",
+      "description": "Abrir o terminal do projeto",
+      "url": "./index.html?action=terminal",
+      "icons": [{ "src": "icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Auditoria GitHub",
+      "short_name": "Auditoria",
+      "description": "Verificar erros e riscos do repositório",
+      "url": "./index.html?action=audit",
+      "icons": [{ "src": "icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
