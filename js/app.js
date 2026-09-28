@@ -2384,11 +2384,7 @@ async function promptCreateRepo() {
 }
 
 function promptPatToken() {
-  const token = prompt('Insira seu GitHub Personal Access Token (com escopo "repo"):');
-  if (token && token.trim()) {
-    window.TermGit.loginWithToken(token.trim());
-    renderGitPanel();
-  }
+  if (window.TermGit) window.TermGit.openConnectModal();
 }
 
 async function doGitCommit() {
