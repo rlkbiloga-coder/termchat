@@ -44,6 +44,18 @@ class TermEditor {
         e.preventDefault();
         this.openLiveCodeModal();
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        this.gotoLine();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        this.replaceAll();
+      }
+      if (e.altKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        this.toggleWrap();
+      }
     });
 
     if (window.TermVFS) {
@@ -877,6 +889,56 @@ console.log('🎵 Sintetizador ativo!');`;
       speedMs,
       chunkSize
     });
+  }
+
+  gotoLine() {
+    const ta = document.getElementById('codeTextarea');
+    if (!ta) return;
+    const n = parseInt(window.prompt('Ir para a linha (número):', '1'), 10);
+    if (!n || n < 1) return;
+    const lines = ta.value.split('\n');
+    if (n > lines.length) return window.alert('Arquivo tem ' + lines.length + ' linhas.');
+    let pos = 0;
+    for (let i = 0; i < n - 1; i++) pos += lines[i].length + 1;
+    ta.focus();
+    ta.setSelectionRange(pos, pos);
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 18;
+    ta.scrollTop = Math.max(0, (n - 1) * lineHeight - ta.clientHeight / 2);
+  }
+
+  replaceAll() {
+    const ta = document.getElementById('codeTextarea');
+    if (!ta) return;
+    const find = window.prompt('Substituir - texto a localizar:');
+    if (find === null || find === '') return;
+    const rep = window.prompt('Substituir "' + find + '" por:');
+    if (rep === null) return;
+    if (!ta.value.includes(find)) return window.alert('Texto não encontrado.');
+    const total = ta.value.split(find).length - 1;
+    if (!window.confirm('Substituir ' + total + ' ocorrência(s) de "' + find + '"?')) return;
+    ta.value = ta.value.split(find).join(rep);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  toggleWrap() {
+    const ta = document.getElementById('codeTextarea');
+    if (!ta) return;
+    const wrapped = ta.style.whiteSpace === 'pre-wrap';
+    ta.style.whiteSpace = wrapped ? 'pre' : 'pre-wrap';
+    ta.style.overflowX = wrapped ? 'auto' : 'hidden';
+    try { localStorage.setItem('termchat_wrap', wrapped ? '0' : '1'); } catch (err) {}
+    if (this.onWrapToggle) this.onWrapToggle(!wrapped);
+  }
+
+  applySavedWrap() {
+    const ta = document.getElementById('codeTextarea');
+    if (!ta) return;
+    try {
+      if (localStorage.getItem('termchat_wrap') === '1') {
+        ta.style.whiteSpace = 'pre-wrap';
+        ta.style.overflowX = 'hidden';
+      }
+    } catch (err) {}
   }
 
   toggleSearch() {
