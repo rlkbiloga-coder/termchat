@@ -37,6 +37,26 @@ test("permissões de plugins são apenas do conjunto permitido", () => {
   }
 });
 
+// ── catálogo de modelos (data/models.json) ───────────────
+test("data/models.json é um catálogo válido de provedores gratuitos", () => {
+  const modelsData = JSON.parse(readFileSync(new URL("data/models.json", ROOT), "utf8"));
+  const providers = modelsData.providers || modelsData.provedores;
+  assert.ok(Array.isArray(providers), "providers deve ser um array");
+  assert.ok(providers.length >= 8, `deve conter no mínimo 8 provedores, encontrou ${providers.length}`);
+  
+  const ids = new Set();
+  for (const p of providers) {
+    assert.ok(p.id, "provedor sem id");
+    assert.ok(!ids.has(p.id), `id de provedor duplicado: ${p.id}`);
+    ids.add(p.id);
+    assert.ok(p.endpoint, `provedor ${p.id} sem endpoint`);
+    assert.ok(Array.isArray(p.models || p.modelos_principais), `provedor ${p.id} sem lista de modelos`);
+    assert.ok((p.models || p.modelos_principais).length > 0, `provedor ${p.id} com lista de modelos vazia`);
+    assert.ok(p.prioridade || p.priority || p.tier_prioridade, `provedor ${p.id} sem tier de prioridade`);
+    assert.ok(p.doc_url || p.url_documentacao, `provedor ${p.id} sem url de documentação`);
+  }
+});
+
 // ── sintaxe de todos os módulos JS ───────────────────────
 const vm = await import("node:vm");
 for (const f of ["app.js", "auth.js", "vfs.js", "icons.js", "integrations.js", "editor.js", "terminal.js"]) {

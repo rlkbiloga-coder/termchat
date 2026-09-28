@@ -1,0 +1,513 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "description": "Catálogo estruturado de provedores e modelos de IA para TermChat",
+  "provedores": [
+    {
+      "id": "ollama",
+      "nome": "Ollama (Local)",
+      "name": "Ollama (Local)",
+      "endpoint": "http://localhost:11434/v1",
+      "auth": "",
+      "modelos_principais": [
+        "llama3.2",
+        "llama3.1",
+        "mistral",
+        "gemma2",
+        "phi3"
+      ],
+      "models": [
+        "llama3.2",
+        "llama3.1",
+        "mistral",
+        "gemma2",
+        "phi3"
+      ],
+      "limites": "Sem limite de requisições (execução local no dispositivo)",
+      "limits": "Unlimited (runs locally on device)",
+      "prioridade": "local",
+      "tier_prioridade": "local",
+      "priority": "local",
+      "doc_url": "https://ollama.com",
+      "url_documentacao": "https://ollama.com"
+    },
+    {
+      "id": "pollinations",
+      "nome": "Pollinations AI",
+      "name": "Pollinations AI",
+      "endpoint": "https://text.pollinations.ai/",
+      "auth": "",
+      "modelos_principais": [
+        "openai",
+        "mistral",
+        "llama",
+        "karma"
+      ],
+      "models": [
+        "openai",
+        "mistral",
+        "llama",
+        "karma"
+      ],
+      "limites": "100% gratuito e sem necessidade de chave de API",
+      "limits": "100% free with no API key required",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://pollinations.ai",
+      "url_documentacao": "https://pollinations.ai"
+    },
+    {
+      "id": "groq",
+      "nome": "Groq Cloud",
+      "name": "Groq Cloud",
+      "endpoint": "https://api.groq.com/openai/v1",
+      "auth": "GROQ_API_KEY",
+      "modelos_principais": [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
+      ],
+      "models": [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
+      ],
+      "limites": "30 RPM, 14.400 RPD, 6K TPM (gratuito sem cartão de crédito)",
+      "limits": "30 RPM, 14,400 RPD, 6K TPM (free tier without credit card)",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://console.groq.com",
+      "url_documentacao": "https://console.groq.com"
+    },
+    {
+      "id": "openrouter",
+      "nome": "OpenRouter (Modelos Free)",
+      "name": "OpenRouter (Free Models)",
+      "endpoint": "https://openrouter.ai/api/v1",
+      "auth": "OPENROUTER_API_KEY",
+      "modelos_principais": [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemini-2.0-flash-lite-001:free",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+        "mistralai/mistral-7b-instruct:free"
+      ],
+      "models": [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemini-2.0-flash-lite-001:free",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+        "mistralai/mistral-7b-instruct:free"
+      ],
+      "limites": "Gratuito para modelos com sufixo :free (taxa limite ~20 req/min)",
+      "limits": "Free for models ending in :free (~20 req/min limit)",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://openrouter.ai/docs",
+      "url_documentacao": "https://openrouter.ai/docs"
+    },
+    {
+      "id": "nvidia",
+      "nome": "NVIDIA NIM",
+      "name": "NVIDIA NIM",
+      "endpoint": "https://integrate.api.nvidia.com/v1",
+      "auth": "NVIDIA_API_KEY",
+      "modelos_principais": [
+        "meta/llama-3.3-70b-instruct",
+        "meta/llama-3.1-405b-instruct",
+        "mistralai/mistral-large-2-instruct",
+        "nvidia/llama-3.1-nemotron-70b-instruct"
+      ],
+      "models": [
+        "meta/llama-3.3-70b-instruct",
+        "meta/llama-3.1-405b-instruct",
+        "mistralai/mistral-large-2-instruct",
+        "nvidia/llama-3.1-nemotron-70b-instruct"
+      ],
+      "limites": "1.000 créditos gratuitos ao cadastrar conta de desenvolvedor NVIDIA",
+      "limits": "1,000 free API credits upon registering NVIDIA Developer account",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://build.nvidia.com",
+      "url_documentacao": "https://build.nvidia.com"
+    },
+    {
+      "id": "gemini",
+      "nome": "Google Gemini",
+      "name": "Google Gemini",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "auth": "GEMINI_API_KEY",
+      "modelos_principais": [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
+      ],
+      "models": [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
+      ],
+      "limites": "15 RPM, 1.500 RPD no plano gratuito do Google AI Studio",
+      "limits": "15 RPM, 1,500 RPD on Google AI Studio free tier",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://aistudio.google.com",
+      "url_documentacao": "https://aistudio.google.com"
+    },
+    {
+      "id": "cerebras",
+      "nome": "Cerebras Cloud",
+      "name": "Cerebras Cloud",
+      "endpoint": "https://api.cerebras.ai/v1",
+      "auth": "CEREBRAS_API_KEY",
+      "modelos_principais": [
+        "llama3.1-8b",
+        "llama3.1-70b"
+      ],
+      "models": [
+        "llama3.1-8b",
+        "llama3.1-70b"
+      ],
+      "limites": "30 RPM, 14.400 RPD (inferência ultra-rápida)",
+      "limits": "30 RPM, 14,400 RPD (ultra-fast inference)",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://cloud.cerebras.ai",
+      "url_documentacao": "https://cloud.cerebras.ai"
+    },
+    {
+      "id": "mistral",
+      "nome": "Mistral AI",
+      "name": "Mistral AI",
+      "endpoint": "https://api.mistral.ai/v1",
+      "auth": "MISTRAL_API_KEY",
+      "modelos_principais": [
+        "mistral-small-latest",
+        "pixtral-12b-2409",
+        "open-mistral-7b"
+      ],
+      "models": [
+        "mistral-small-latest",
+        "pixtral-12b-2409",
+        "open-mistral-7b"
+      ],
+      "limites": "Plano La Plateforme Free Tier / testes",
+      "limits": "La Plateforme Free Tier / experimental tier",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://console.mistral.ai",
+      "url_documentacao": "https://console.mistral.ai"
+    },
+    {
+      "id": "together",
+      "nome": "Together AI",
+      "name": "Together AI",
+      "endpoint": "https://api.together.xyz/v1",
+      "auth": "TOGETHER_API_KEY",
+      "modelos_principais": [
+        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+        "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        "Qwen/Qwen2.5-72B-Instruct-Turbo"
+      ],
+      "models": [
+        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+        "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        "Qwen/Qwen2.5-72B-Instruct-Turbo"
+      ],
+      "limites": "$1,00 USD em créditos gratuitos ao criar conta de teste",
+      "limits": "$1.00 USD free credits upon registration",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://www.together.ai",
+      "url_documentacao": "https://www.together.ai"
+    },
+    {
+      "id": "huggingface",
+      "nome": "Hugging Face Inference",
+      "name": "Hugging Face Inference",
+      "endpoint": "https://api-inference.huggingface.co/v1",
+      "auth": "HUGGINGFACE_API_KEY",
+      "modelos_principais": [
+        "meta-llama/Llama-3.2-1B-Instruct",
+        "mistralai/Mistral-7B-Instruct-v0.3",
+        "Qwen/Qwen2.5-Coder-32B-Instruct"
+      ],
+      "models": [
+        "meta-llama/Llama-3.2-1B-Instruct",
+        "mistralai/Mistral-7B-Instruct-v0.3",
+        "Qwen/Qwen2.5-Coder-32B-Instruct"
+      ],
+      "limites": "Gratuito com taxa limitada (rate limits) no plano Serverless",
+      "limits": "Free with rate limits on Serverless API",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://huggingface.co/docs/api-inference",
+      "url_documentacao": "https://huggingface.co/docs/api-inference"
+    }
+  ],
+  "providers": [
+    {
+      "id": "ollama",
+      "nome": "Ollama (Local)",
+      "name": "Ollama (Local)",
+      "endpoint": "http://localhost:11434/v1",
+      "auth": "",
+      "modelos_principais": [
+        "llama3.2",
+        "llama3.1",
+        "mistral",
+        "gemma2",
+        "phi3"
+      ],
+      "models": [
+        "llama3.2",
+        "llama3.1",
+        "mistral",
+        "gemma2",
+        "phi3"
+      ],
+      "limites": "Sem limite de requisições (execução local no dispositivo)",
+      "limits": "Unlimited (runs locally on device)",
+      "prioridade": "local",
+      "tier_prioridade": "local",
+      "priority": "local",
+      "doc_url": "https://ollama.com",
+      "url_documentacao": "https://ollama.com"
+    },
+    {
+      "id": "pollinations",
+      "nome": "Pollinations AI",
+      "name": "Pollinations AI",
+      "endpoint": "https://text.pollinations.ai/",
+      "auth": "",
+      "modelos_principais": [
+        "openai",
+        "mistral",
+        "llama",
+        "karma"
+      ],
+      "models": [
+        "openai",
+        "mistral",
+        "llama",
+        "karma"
+      ],
+      "limites": "100% gratuito e sem necessidade de chave de API",
+      "limits": "100% free with no API key required",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://pollinations.ai",
+      "url_documentacao": "https://pollinations.ai"
+    },
+    {
+      "id": "groq",
+      "nome": "Groq Cloud",
+      "name": "Groq Cloud",
+      "endpoint": "https://api.groq.com/openai/v1",
+      "auth": "GROQ_API_KEY",
+      "modelos_principais": [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
+      ],
+      "models": [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
+      ],
+      "limites": "30 RPM, 14.400 RPD, 6K TPM (gratuito sem cartão de crédito)",
+      "limits": "30 RPM, 14,400 RPD, 6K TPM (free tier without credit card)",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://console.groq.com",
+      "url_documentacao": "https://console.groq.com"
+    },
+    {
+      "id": "openrouter",
+      "nome": "OpenRouter (Modelos Free)",
+      "name": "OpenRouter (Free Models)",
+      "endpoint": "https://openrouter.ai/api/v1",
+      "auth": "OPENROUTER_API_KEY",
+      "modelos_principais": [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemini-2.0-flash-lite-001:free",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+        "mistralai/mistral-7b-instruct:free"
+      ],
+      "models": [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemini-2.0-flash-lite-001:free",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+        "mistralai/mistral-7b-instruct:free"
+      ],
+      "limites": "Gratuito para modelos com sufixo :free (taxa limite ~20 req/min)",
+      "limits": "Free for models ending in :free (~20 req/min limit)",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://openrouter.ai/docs",
+      "url_documentacao": "https://openrouter.ai/docs"
+    },
+    {
+      "id": "nvidia",
+      "nome": "NVIDIA NIM",
+      "name": "NVIDIA NIM",
+      "endpoint": "https://integrate.api.nvidia.com/v1",
+      "auth": "NVIDIA_API_KEY",
+      "modelos_principais": [
+        "meta/llama-3.3-70b-instruct",
+        "meta/llama-3.1-405b-instruct",
+        "mistralai/mistral-large-2-instruct",
+        "nvidia/llama-3.1-nemotron-70b-instruct"
+      ],
+      "models": [
+        "meta/llama-3.3-70b-instruct",
+        "meta/llama-3.1-405b-instruct",
+        "mistralai/mistral-large-2-instruct",
+        "nvidia/llama-3.1-nemotron-70b-instruct"
+      ],
+      "limites": "1.000 créditos gratuitos ao cadastrar conta de desenvolvedor NVIDIA",
+      "limits": "1,000 free API credits upon registering NVIDIA Developer account",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://build.nvidia.com",
+      "url_documentacao": "https://build.nvidia.com"
+    },
+    {
+      "id": "gemini",
+      "nome": "Google Gemini",
+      "name": "Google Gemini",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "auth": "GEMINI_API_KEY",
+      "modelos_principais": [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
+      ],
+      "models": [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
+      ],
+      "limites": "15 RPM, 1.500 RPD no plano gratuito do Google AI Studio",
+      "limits": "15 RPM, 1,500 RPD on Google AI Studio free tier",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://aistudio.google.com",
+      "url_documentacao": "https://aistudio.google.com"
+    },
+    {
+      "id": "cerebras",
+      "nome": "Cerebras Cloud",
+      "name": "Cerebras Cloud",
+      "endpoint": "https://api.cerebras.ai/v1",
+      "auth": "CEREBRAS_API_KEY",
+      "modelos_principais": [
+        "llama3.1-8b",
+        "llama3.1-70b"
+      ],
+      "models": [
+        "llama3.1-8b",
+        "llama3.1-70b"
+      ],
+      "limites": "30 RPM, 14.400 RPD (inferência ultra-rápida)",
+      "limits": "30 RPM, 14,400 RPD (ultra-fast inference)",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://cloud.cerebras.ai",
+      "url_documentacao": "https://cloud.cerebras.ai"
+    },
+    {
+      "id": "mistral",
+      "nome": "Mistral AI",
+      "name": "Mistral AI",
+      "endpoint": "https://api.mistral.ai/v1",
+      "auth": "MISTRAL_API_KEY",
+      "modelos_principais": [
+        "mistral-small-latest",
+        "pixtral-12b-2409",
+        "open-mistral-7b"
+      ],
+      "models": [
+        "mistral-small-latest",
+        "pixtral-12b-2409",
+        "open-mistral-7b"
+      ],
+      "limites": "Plano La Plateforme Free Tier / testes",
+      "limits": "La Plateforme Free Tier / experimental tier",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://console.mistral.ai",
+      "url_documentacao": "https://console.mistral.ai"
+    },
+    {
+      "id": "together",
+      "nome": "Together AI",
+      "name": "Together AI",
+      "endpoint": "https://api.together.xyz/v1",
+      "auth": "TOGETHER_API_KEY",
+      "modelos_principais": [
+        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+        "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        "Qwen/Qwen2.5-72B-Instruct-Turbo"
+      ],
+      "models": [
+        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+        "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        "Qwen/Qwen2.5-72B-Instruct-Turbo"
+      ],
+      "limites": "$1,00 USD em créditos gratuitos ao criar conta de teste",
+      "limits": "$1.00 USD free credits upon registration",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://www.together.ai",
+      "url_documentacao": "https://www.together.ai"
+    },
+    {
+      "id": "huggingface",
+      "nome": "Hugging Face Inference",
+      "name": "Hugging Face Inference",
+      "endpoint": "https://api-inference.huggingface.co/v1",
+      "auth": "HUGGINGFACE_API_KEY",
+      "modelos_principais": [
+        "meta-llama/Llama-3.2-1B-Instruct",
+        "mistralai/Mistral-7B-Instruct-v0.3",
+        "Qwen/Qwen2.5-Coder-32B-Instruct"
+      ],
+      "models": [
+        "meta-llama/Llama-3.2-1B-Instruct",
+        "mistralai/Mistral-7B-Instruct-v0.3",
+        "Qwen/Qwen2.5-Coder-32B-Instruct"
+      ],
+      "limites": "Gratuito com taxa limitada (rate limits) no plano Serverless",
+      "limits": "Free with rate limits on Serverless API",
+      "prioridade": "free_tier",
+      "tier_prioridade": "free_tier",
+      "priority": "free_tier",
+      "doc_url": "https://huggingface.co/docs/api-inference",
+      "url_documentacao": "https://huggingface.co/docs/api-inference"
+    }
+  ]
+}
