@@ -20,7 +20,9 @@ jobs:
         run: |
           fail=0
           for f in $(find . -name "*.js" -not -path "./node_modules/*"); do
-            node --check "$f" || fail=1
+            node --check "$f" 2>/dev/null || \
+              { cp "$f" /tmp/chk.mjs; node --check /tmp/chk.mjs 2>/dev/null || \
+                { echo "ERRO sintaxe: $f"; fail=1; }; }
           done
           exit $fail
       - name: Sintaxe JS dentro dos HTMLs
@@ -34,19 +36,22 @@ jobs:
                   open('/tmp/t.js', 'w').write(m.group(1))
                   r = subprocess.run(['node', '--check', '/tmp/t.js'], capture_output=True)
                   if r.returncode:
-                      print(f, 'script', i, r.stderr.decode()[:300])
-                      fail = True
+                      open('/tmp/t.mjs', 'w').write(m.group(1))
+                      r2 = subprocess.run(['node', '--check', '/tmp/t.mjs'], capture_output=True)
+                      if r2.returncode:
+                          print(f, 'script', i, r2.stderr.decode()[:300])
+                          fail = True
           sys.exit(1 if fail else 0)
           PYEOF
       - name: Site no ar
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" https://nicolaswjwkwk.github.io/termchat)
+          code=$(curl -sL -o /dev/null -w "%{http_code}" https://nicolaswjwkwk.github.io/termchat)
           echo "HTTP $code"
           [ "$code" = "200" ] || { echo "::error::site fora do ar"; exit 1; }
       - name: Arquivos essenciais
         run: |
           for f in index.html 404.html manifest.json robots.txt sitemap.xml; do
-            curl -sf -o /dev/null "https://nicolaswjwkwk.github.io/termchat/$f" || { echo "FALTA: $f"; exit 1; }
+            curl -sfL -o /dev/null "https://nicolaswjwkwk.github.io/termchat/$f" || { echo "FALTA: $f"; exit 1; }
           done
       - name: Abrir issue se falhou
         if: failure()
