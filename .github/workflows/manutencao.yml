@@ -1,0 +1,139 @@
+name: Agente de Manutencao
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Terca e sexta, 07:00 UTC (04:00 Brasilia) — fora do horario de uso
+    - cron: "0 7 * * 2,5"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+jobs:
+  manutencao:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Token padrao do workflow (secrets.GITHUB_TOKEN) — NAO usa token
+          # do Superagente Base44 nem nenhuma chave externa
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Dependencias destravadas (npm ci)
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Relatorio de atualizacoes disponiveis (npm-check-updates, open source)
+        id: ncu
+        run: |
+          npm install -g npm-check-updates
+          ncu_out=$(ncu 2>/dev/null || true)
+          echo "$ncu_out"
+          if echo "$ncu_out" | grep -q "Upgrade"; then
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Aplicar atualizacoes seguras (dentro do semver ^)
+        if: steps.ncu.outputs.has_updates == 'true'
+        run: npm update --no-audit --no-fund
+
+      - name: Lint real de todos os JS (ferramenta do proprio projeto)
+        run: npm run lint
+
+      - name: Audit de seguranca das dependencias (npm audit, open source)
+        id: audit
+        run: |
+          set +e
+          audit_out=$(npm audit --omit=dev 2>&1)
+          audit_code=$?
+          echo "$audit_out"
+          if [ $audit_code -ne 0 ]; then
+            echo "vulnerabilities=true" >> "$GITHUB_OUTPUT"
+            echo "$audit_out" > /tmp/audit-report.txt
+          else
+            echo "vulnerabilities=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Site publicado esta no ar e fresco?
+        run: |
+          python3 - <<'PYEOF'
+          import sys, urllib.request
+          base = "https://nicolaswjwkwk.github.io/termchat"
+          try:
+              html = urllib.request.urlopen(base + "/", timeout=30).read().decode()
+              if "TermChat" not in html:
+                  print("index publicado nao parece ser o TermChat"); sys.exit(1)
+          except Exception as e:
+              print("Site no ar falhou:", e); sys.exit(1)
+          local = open("index.html", encoding="utf-8").read()
+          for marker in ("service-worker.js?v=", "style.css?v="):
+              l, r = local.find(marker), html.find(marker)
+              if l != -1 and r != -1 and local[l:l+30] != html[r:r+30]:
+                  print("AVISO: site publicado parece atrasado em relacao a main")
+                  print(" local:", local[l:l+40], "| remoto:", html[r:r+40])
+          print("Site no ar e respondendo.")
+          PYEOF
+
+      - name: PWA — manifest e service worker validos
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys, urllib.request
+          m = json.load(open("manifest.json", encoding="utf-8"))
+          assert m.get("name"), "manifest sem name"
+          assert m.get("icons"), "manifest sem icons"
+          for icon in m["icons"]:
+              src = icon["src"]
+              if src.startswith("http"):
+                  urllib.request.urlopen(src, timeout=20)
+                  continue
+              open(src, encoding="utf-8")
+          sw = open("service-worker.js", encoding="utf-8").read()
+          assert "cache" in sw.lower(), "service worker sem cache"
+          print("PWA valido:", m["name"], "com", len(m["icons"]), "icones")
+          PYEOF
+
+      - name: Commit das atualizacoes aplicadas (token do workflow)
+        id: commit
+        run: |
+          git config user.name "Agente de Manutencao"
+          git config user.email "actions@github.com"
+          if [ -n "$(git status --porcelain -- package.json package-lock.json)" ]; then
+            git add package.json package-lock.json
+            git commit -m "chore(deps): atualizacao automatica de dependencias (Agente de Manutencao)"
+            git push
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Abrir issue com relatorio quando ha vulnerabilidades
+        if: steps.audit.outputs.vulnerabilities == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('/tmp/audit-report.txt', 'utf8');
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              labels: 'agente-manutencao', state: 'open'
+            });
+            const title = 'Agente de Manutencao: vulnerabilidades nas dependencias';
+            const body = `Relatorio do npm audit gerado automaticamente.\n\n\`\`\`\n${report.slice(0, 3000)}\n\`\`\`\n\nRode \`npm audit fix\` localmente ou comande este workflow para aplicar.`;
+            const existing = issues.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number, body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['agente-manutencao']
+              });
+            }
