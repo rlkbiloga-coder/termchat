@@ -13,7 +13,7 @@ jobs:
   manutencao:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Token padrao do workflow (secrets.GITHUB_TOKEN) — NAO usa token
           # do Superagente Base44 nem nenhuma chave externa
