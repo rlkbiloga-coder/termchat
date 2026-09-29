@@ -1,5 +1,6 @@
-# Agente de Performance — mede o site publicado com Lighthouse (open source)
-# Usa apenas o token do workflow (GITHUB_TOKEN). Nenhum servico pago.
+# Agente de Performance — extremamente avancado
+# 1a opiniao: Google PageSpeed Insights API (free, sem chave)
+# Se a API falhar: Lighthouse local (open source) — fallback do repositorio
 name: Agente de Performance
 on:
   schedule:
@@ -17,10 +18,47 @@ jobs:
         with:
           node-version: 20
 
-      - name: Lighthouse no site publicado
-        id: lh
+      - name: PageSpeed Insights API (free, sem chave)
+        id: psi
         continue-on-error: true
         run: |
+          curl -s --max-time 120 \
+            "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https%3A%2F%2Frlkbiloga-coder.github.io%2Ftermchat%2F&category=performance&category=best-practices" \
+            -o /tmp/psi.json
+          node - <<'EOF'
+          const fs = require('fs');
+          fs.writeFileSync('/tmp/font.txt', 'up');
+          let d;
+          try { d = JSON.parse(fs.readFileSync('/tmp/psi.json', 'utf8')); } catch (e) { fs.writeFileSync('/tmp/font.txt', 'down'); process.exit(0); }
+          if (!d.categories || !d.categories.performance) { fs.writeFileSync('/tmp/font.txt', 'down'); process.exit(0); }
+          const p = Math.round(d.categories.performance.score * 100);
+          const b = Math.round((d.categories['best-practices'] || {score: 1}).score * 100);
+          const marca = n => n >= 90 ? '✅' : (n >= 50 ? '⚠️' : '❌');
+          const m = d.audits || {};
+          const corpo =
+            '## Relatorio Performance (Google PageSpeed Insights API)\n\n' +
+            '* Fonte: dados reais do laboratorio do Chromium, via API free sem chave\n' +
+            '* Performance: **' + p + '/100** ' + marca(p) + '\n' +
+            '* Boas praticas: **' + b + '/100** ' + marca(b) + '\n\n' +
+            'Metricas principais:\n' +
+            '* First Contentful Paint: ' + ((m['first-contentful-paint'] || {}).displayValue || '-') + '\n' +
+            '* Largest Contentful Paint: ' + ((m['largest-contentful-paint'] || {}).displayValue || '-') + '\n' +
+            '* Total Blocking Time: ' + ((m['total-blocking-time'] || {}).displayValue || '-') + '\n' +
+            '* Cumulative Layout Shift: ' + ((m['cumulative-layout-shift'] || {}).displayValue || '-') + '\n';
+          fs.writeFileSync('/tmp/resumo.md', corpo);
+          console.log(corpo);
+          process.exit(p < 50 || b < 50 ? 1 : 0);
+          EOF
+          codigo=$?
+          echo "psifont=$(cat /tmp/font.txt)" >> "$GITHUB_OUTPUT"
+          exit $codigo
+
+      - name: Fallback — Lighthouse local (so se a API falhou)
+        id: lh
+        if: steps.psi.outputs.psifont == 'down'
+        continue-on-error: true
+        run: |
+          echo "PageSpeed API indisponivel — usando Lighthouse local (fallback do repositorio)."
           npm install -g lighthouse
           lighthouse "https://rlkbiloga-coder.github.io/termchat/" \
             --output=json --output-path=/tmp/lh.json \
@@ -33,24 +71,23 @@ jobs:
           const b = Math.round((cat['best-practices'].score || 0) * 100);
           const marca = n => n >= 90 ? '✅' : (n >= 50 ? '⚠️' : '❌');
           const corpo =
-            '## Relatorio Lighthouse\n\n' +
+            '## Relatorio Performance (Lighthouse local — fallback)\n\n' +
             '* Performance: **' + p + '/100** ' + marca(p) + '\n' +
             '* Boas praticas: **' + b + '/100** ' + marca(b) + '\n\n' +
             'Metricas principais:\n' +
             '* First Contentful Paint: ' + Math.round(lh.audits['first-contentful-paint'].numericValue) + 'ms\n' +
-            '* Total Blocking Time: ' + Math.round(lh.audits['total-blocking-time'].numericValue) + 'ms\n' +
-            '* Tamanho da pagina: ' + Math.round((lh.audits['total-byte-weight'] || {numericValue: 0}).numericValue / 1024) + ' KB\n';
+            '* Total Blocking Time: ' + Math.round(lh.audits['total-blocking-time'].numericValue) + 'ms\n';
           require('fs').writeFileSync('/tmp/resumo.md', corpo);
           console.log(corpo);
           process.exit(p < 50 || b < 50 ? 1 : 0);
           EOF
 
-      - name: Nota baixa ou falha → issue para o Imperador
-        if: steps.lh.outcome == 'failure'
+      - name: Nota baixa ou falha total → issue para o Imperador
+        if: steps.psi.outcome == 'failure' || steps.lh.outcome == 'failure'
         uses: actions/github-script@v7
         with:
           script: |
-            let corpo = 'Lighthouse falhou ao rodar no site publicado.';
+            let corpo = 'Nem a PageSpeed API nem o Lighthouse local conseguiram medir. Vale revisar manualmente.';
             try { corpo = require('fs').readFileSync('/tmp/resumo.md', 'utf8'); } catch (e) {}
             const titulo = '⚠️ Performance do site abaixo do esperado';
             const issues = await github.rest.issues.listForRepo({

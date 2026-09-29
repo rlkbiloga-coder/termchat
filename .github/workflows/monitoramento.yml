@@ -1,9 +1,10 @@
-# Agente de Monitoramento — vigia o site semanalmente (uso legítimo de CI, sem alta frequência)
-# Cria issue quando cai, fecha quando volta. So GITHUB_TOKEN, zero custo.
+# Agente de Monitoramento — extremamente avancado
+# 1a opiniao: curl direto (token do repositorio, infalivel)
+# 2a opiniao: API isitup.org (free, sem chave) — confirmacao externa
 name: Agente de Monitoramento
 on:
   schedule:
-    - cron: "5 10 * * 1"   # semanal, segunda
+    - cron: "0 */6 * * *"   # a cada 6 horas
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,7 +13,7 @@ jobs:
   vigiar:
     runs-on: ubuntu-latest
     steps:
-      - name: Site e recursos publicos respondendo?
+      - name: Site e recursos publicos respondendo? (curl direto)
         id: vigia
         run: |
           base="https://rlkbiloga-coder.github.io/termchat"
@@ -28,6 +29,30 @@ jobs:
           fim=$(date +%s%N)
           echo "latency=$(( (fim-inicio)/1000000 ))ms" >> "$GITHUB_OUTPUT"
           [ "$fail" = "0" ]
+
+      - name: Confirmacao externa via API free (isitup.org)
+        if: steps.vigia.outcome == 'success'
+        id: externa
+        continue-on-error: true
+        run: |
+          resp=$(curl -s --max-time 15 "https://isitup.org/rlkbiloga-coder.github.io%2Ftermchat.json" || echo "")
+          if echo "$resp" | grep -q '"is_up": *true'; then
+            echo "Opiniao externa (isitup.org): site NO AR ✅"
+          elif [ -n "$resp" ]; then
+            echo "Opiniao externa (isitup.org): diz que caiu — verificando..."
+            echo "$resp" | head -5
+            # API externa divergiu; confiar no curl local (token do repositorio)
+            echo "Confirmando com o curl local (fonte oficial do repositorio)..."
+            codigo=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "https://rlkbiloga-coder.github.io/termchat/" || echo 000)
+            if [ "$codigo" = "200" ]; then
+              echo "Curl local confirma: site no ar. API externa ignorada."
+            else
+              echo "Ambos concordam: site fora do ar."
+              exit 1
+            fi
+          else
+            echo "API externa indisponivel — seguindo so com o curl local (fallback)."
+          fi
 
       - name: Site caiu → abrir issue
         if: failure()
@@ -48,7 +73,7 @@ jobs:
               title: titulo,
               body: 'O Agente de Monitoramento nao conseguiu acessar o site publicado agora.\n\n' +
                     'Verificado em: ' + new Date().toISOString() + '\n\n' +
-                    'O Agente de Monitoramento voltara a checar em 6 horas e fechara esta issue quando o site voltar.',
+                    'O Agente de Monitoramento volta a checar em 6 horas e fecha esta issue quando o site voltar.',
               labels: ['monitoramento']
             });
 

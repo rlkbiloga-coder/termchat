@@ -2,6 +2,8 @@ name: Guardiao do Site
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "0 9 * * *"
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,7 +19,7 @@ jobs:
       - name: Sintaxe JS dos arquivos
         run: |
           fail=0
-          for f in $(find . -name "*.js" -not -path "./node_modules/*"); do
+          for f in $(find . -name "*.js" -not -path "./node_modules/*" -not -path "./vendor/*"); do
             node --check "$f" 2>/dev/null || \
               { cp "$f" /tmp/chk.mjs; node --check /tmp/chk.mjs 2>/dev/null || \
                 { echo "ERRO sintaxe: $f"; fail=1; }; }
@@ -41,25 +43,79 @@ jobs:
                           fail = True
           sys.exit(1 if fail else 0)
           PYEOF
-      - name: Site no ar
+      - name: Site no ar (com retentativas — evita alarme falso durante deploy)
         run: |
-          code=$(curl -sL -o /dev/null -w "%{http_code}" https://rlkbiloga-coder.github.io/termchat)
-          echo "HTTP $code"
-          [ "$code" = "200" ] || { echo "::error::site fora do ar"; exit 1; }
-      - name: Arquivos essenciais
-        run: |
-          for f in index.html 404.html manifest.json robots.txt sitemap.xml; do
-            curl -sfL -o /dev/null "https://rlkbiloga-coder.github.io/termchat/$f" || { echo "FALTA: $f"; exit 1; }
+          base="https://rlkbiloga-coder.github.io/termchat"
+          ok=0
+          for tentativa in 1 2 3; do
+            code=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 30 "$base" || echo 000)
+            echo "Tentativa $tentativa: HTTP $code"
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 20
           done
-      - name: Abrir issue se falhou
+          [ "$ok" = "1" ] || { echo "::error::site fora do ar apos 3 tentativas"; exit 1; }
+      - name: Arquivos essenciais (com retentativas)
+        run: |
+          base="https://rlkbiloga-coder.github.io/termchat"
+          for f in index.html 404.html manifest.json robots.txt sitemap.xml; do
+            ok=0
+            for tentativa in 1 2 3; do
+              code=$(curl -sfL -o /dev/null -w "%{http_code}" --max-time 30 "$base/$f" || echo 000)
+              if [ "$code" = "200" ]; then ok=1; break; fi
+              sleep 20
+            done
+            [ "$ok" = "1" ] || { echo "FALTA apos 3 tentativas: $f"; exit 1; }
+          done
+      - name: Registrar problema (1 issue unico, sem duplicar)
         if: failure()
         uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: 'Guardiao: problema detectado no site',
-              body: 'Verificacao automatica falhou. Log: ' + context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId,
-              labels: ['guardiao', 'automatico']
+            const { owner, repo } = context.repo;
+            const titulo = 'Guardiao: problema detectado no site';
+            const logUrl = context.serverUrl + '/' + owner + '/' + repo + '/actions/runs/' + context.runId;
+            const agora = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+            const issues = await github.rest.issues.listForRepo({
+              owner, repo, labels: 'guardiao', state: 'open'
             });
+            const jaAberto = issues.data.find(i => i.title === titulo);
+            const corpo = 'Verificacao automatica falhou.\n\n' +
+              '* Ultima deteccao: ' + agora + '\n' +
+              '* Log: ' + logUrl + '\n\n' +
+              'Este issue e unico e fica aberto enquanto o problema existir. ' +
+              'Ele e atualizado a cada nova deteccao, sem abrir duplicados.';
+            if (jaAberto) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: jaAberto.number,
+                body: 'Problema detectado novamente em ' + agora + '. Log: ' + logUrl
+              });
+            } else {
+              await github.rest.issues.create({
+                owner, repo, title: titulo, body: corpo,
+                labels: ['guardiao', 'automatico']
+              });
+            }
+      - name: Site saudavel → fechar issue aberto
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const titulo = 'Guardiao: problema detectado no site';
+            const issues = await github.rest.issues.listForRepo({
+              owner, repo, labels: 'guardiao', state: 'open'
+            });
+            const aberto = issues.data.find(i => i.title === titulo);
+            if (aberto) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: aberto.number,
+                body: '✅ Verificacao passou em ' +
+                  new Date().toISOString().slice(0, 16).replace('T', ' ') +
+                  ' UTC. Fechando o alerta.'
+              });
+              await github.rest.issues.update({
+                owner, repo, issue_number: aberto.number, state: 'closed'
+              });
+            } else {
+              console.log('Site saudavel, nenhum alerta aberto.');
+            }

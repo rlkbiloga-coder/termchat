@@ -1,9 +1,13 @@
+# Agente de Seguranca — extremamente avancado
+# 1. gitleaks no repositorio (vazamento de segredos, open source)
+# 2. Mozilla HTTP Observatory API (free, sem chave): nota de seguranca
+#    do site publicado. Se a API falhar, segue so com gitleaks.
 name: Agente de Seguranca
 on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 10 * * 1"
+    - cron: "0 10 * * 1"   # segunda, 07:00 Brasilia
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,3 +22,67 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mozilla Observatory API (free, sem chave) no site publicado
+        id: observatory
+        continue-on-error: true
+        run: |
+          curl -s --max-time 60 -X POST \
+            "https://http-observatory.security.mozilla.org/api/v1/analyze?host=rlkbiloga-coder.github.io" \
+            -o /tmp/obs.json
+          sleep 20
+          curl -s --max-time 60 \
+            "https://http-observatory.security.mozilla.org/api/v1/analyze?host=rlkbiloga-coder.github.io" \
+            -o /tmp/obs.json
+          python3 - <<'EOF'
+          import json, sys
+          try:
+              d = json.load(open('/tmp/obs.json'))
+          except Exception:
+              print("Observatory indisponivel — seguindo so com gitleaks (fallback).")
+              sys.exit(0)
+          if not isinstance(d, dict) or 'grade' not in d:
+              print("Observatory sem resultado — seguindo so com gitleaks (fallback).")
+              sys.exit(0)
+          nota = d.get('score', '?')
+          grade = d.get('grade', '?')
+          corpo = '## Nota de seguranca do site (Mozilla Observatory)\n\n' + \
+              '* Grade: **' + grade + '** (' + str(nota) + '/100)\n' + \
+              '* Testes executados: ' + str(len([t for t, v in (d.get('tests', {}) or {}).items()])) + '\n\n'
+          falhas = []
+          for t, v in (d.get('tests', {}) or {}).items():
+              if isinstance(v, dict) and v.get('score', 100) < 50:
+                  falhas.append('* ' + t + ' — ' + str(v.get('score')) + '/100')
+          if falhas:
+              corpo += 'Pontos fracos:\n' + '\n'.join(sorted(falhas)[:10])
+          else:
+              corpo += 'Nenhum ponto fraco grave.'
+          open('/tmp/seguranca.md', 'w').write(corpo)
+          print(corpo)
+          sys.exit(1 if grade in ('F', 'E') else 0)
+          EOF
+
+      - name: Nota ruim de seguranca → issue
+        if: steps.observatory.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let corpo = 'A nota de seguranca do site publico esta ruim.';
+            try { corpo = require('fs').readFileSync('/tmp/seguranca.md', 'utf8'); } catch (e) {}
+            const titulo = '🛡️ Seguranca do site abaixo do aceitavel';
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              labels: 'seguranca', state: 'open'
+            });
+            const ja = issues.data.find(i => i.title === titulo);
+            if (ja) {
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: ja.number, body: corpo
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: titulo, body: corpo, labels: ['seguranca']
+              });
+            }
