@@ -9,7 +9,7 @@
 
 > **TermChat** é uma Web IDE profissional e plataforma de desenvolvimento assistida por Inteligência Artificial integrada ao ecossistema Google, GitHub e padrões abertos (MCP, LSP, OpenAPI, WebSocket, WebAssembly).
 
-Site Oficial / GitHub Pages: **[https://nicolaswjwkwk.github.io/termchat/](https://nicolaswjwkwk.github.io/termchat/)**
+Site Oficial / GitHub Pages: **[https://rlkbiloga-coder.github.io/termchat/](https://rlkbiloga-coder.github.io/termchat/)**
 
 ---
 
@@ -90,7 +90,7 @@ Site Oficial / GitHub Pages: **[https://nicolaswjwkwk.github.io/termchat/](https
 ### Instalação e Execução
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/nicolaswjwkwk/termchat.git
+git clone https://github.com/rlkbiloga-coder/termchat.git
 cd termchat
 
 # 2. Instale as dependências

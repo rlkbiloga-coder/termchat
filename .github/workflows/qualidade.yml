@@ -17,7 +17,7 @@ jobs:
         run: |
           python3 - <<'PYEOF'
           import urllib.request, re, sys
-          base = "https://nicolaswjwkwk.github.io/termchat"
+          base = "https://rlkbiloga-coder.github.io/termchat"
           try:
               xml = urllib.request.urlopen(base + "/sitemap.xml", timeout=30).read().decode()
           except Exception as e:
@@ -37,7 +37,7 @@ jobs:
           PYEOF
       - name: SEO basico do index
         run: |
-          html=$(curl -sL https://nicolaswjwkwk.github.io/termchat)
+          html=$(curl -sL https://rlkbiloga-coder.github.io/termchat)
           echo "$html" | grep -q "<title>" || { echo "FALTA <title>"; exit 1; }
           echo "$html" | grep -q 'name="description"' || { echo "FALTA meta description"; exit 1; }
           echo "$html" | grep -q 'name="viewport"' || { echo "FALTA viewport"; exit 1; }

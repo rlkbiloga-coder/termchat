@@ -1,9 +1,9 @@
-# Agente de Monitoramento — vigia o site no ar a cada 6 horas
+# Agente de Monitoramento — vigia o site semanalmente (uso legítimo de CI, sem alta frequência)
 # Cria issue quando cai, fecha quando volta. So GITHUB_TOKEN, zero custo.
 name: Agente de Monitoramento
 on:
   schedule:
-    - cron: "0 */6 * * *"   # a cada 6 horas
+    - cron: "5 10 * * 1"   # semanal, segunda
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,7 +15,7 @@ jobs:
       - name: Site e recursos publicos respondendo?
         id: vigia
         run: |
-          base="https://nicolaswjwkwk.github.io/termchat"
+          base="https://rlkbiloga-coder.github.io/termchat"
           inicio=$(date +%s%N)
           fail=0
           for caminho in "" "manifest.json" "service-worker.js" "plugins.json"; do

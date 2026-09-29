@@ -2379,7 +2379,7 @@ const gmailInboxStore = [
     sender: 'GitHub Security <security@github.com>',
     subject: 'Resumo da Auditoria de Repositório TermChat',
     snippet: 'Todos os módulos verificados. Zero dependências vulneráveis encontradas...',
-    body: 'Relatório Semanal de Segurança:\n\nRepositório: nicolaswjwkwk/termchat\nScore: 96/100 (Risco Baixo)\nStatus: Protegido com Zero-Trust',
+    body: 'Relatório Semanal de Segurança:\n\nRepositório: rlkbiloga-coder/termchat\nScore: 96/100 (Risco Baixo)\nStatus: Protegido com Zero-Trust',
     date: new Date(Date.now() - 86400000).toISOString(),
     read: true,
     starred: true
@@ -2458,7 +2458,7 @@ const cloudSqlDatabase = {
     { id: 'usr_2', email: 'dev@termchat.org', name: 'Lead Engineer', role: 'developer', created_at: '2026-09-22 14:30:00' }
   ],
   projects: [
-    { id: 'prj_1', name: 'TermChat IDE Web', owner_id: 'usr_1', repo: 'nicolaswjwkwk/termchat', branch: 'main', active: true },
+    { id: 'prj_1', name: 'TermChat IDE Web', owner_id: 'usr_1', repo: 'rlkbiloga-coder/termchat', branch: 'main', active: true },
     { id: 'prj_2', name: 'Google Cloud Integration Hub', owner_id: 'usr_1', repo: 'google/cloud-integrations', branch: 'master', active: true }
   ],
   audit_logs: [

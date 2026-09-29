@@ -2,8 +2,6 @@ name: Guardiao do Site
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: "0 9 * * *"
   workflow_dispatch:
 permissions:
   contents: read
@@ -45,13 +43,13 @@ jobs:
           PYEOF
       - name: Site no ar
         run: |
-          code=$(curl -sL -o /dev/null -w "%{http_code}" https://nicolaswjwkwk.github.io/termchat)
+          code=$(curl -sL -o /dev/null -w "%{http_code}" https://rlkbiloga-coder.github.io/termchat)
           echo "HTTP $code"
           [ "$code" = "200" ] || { echo "::error::site fora do ar"; exit 1; }
       - name: Arquivos essenciais
         run: |
           for f in index.html 404.html manifest.json robots.txt sitemap.xml; do
-            curl -sfL -o /dev/null "https://nicolaswjwkwk.github.io/termchat/$f" || { echo "FALTA: $f"; exit 1; }
+            curl -sfL -o /dev/null "https://rlkbiloga-coder.github.io/termchat/$f" || { echo "FALTA: $f"; exit 1; }
           done
       - name: Abrir issue se falhou
         if: failure()

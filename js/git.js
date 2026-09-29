@@ -673,7 +673,7 @@ class TermGitManager {
   // --- GitHub Repository Security & Bugs Audit Scanner ---
   async auditGitHubRepo(fullName) {
     if (!fullName) {
-      fullName = localStorage.getItem(this.selectedRepoKey) || 'nicolaswjwkwk/termchat';
+      fullName = localStorage.getItem(this.selectedRepoKey) || 'rlkbiloga-coder/termchat';
     }
     const [owner, repo] = fullName.split('/');
     if (!owner || !repo) throw new Error('Repositório inválido. Formato esperado: dono/repo');

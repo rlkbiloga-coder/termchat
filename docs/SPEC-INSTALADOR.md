@@ -65,7 +65,7 @@ Todo plugin instalável via GitHub deve conter na raiz do repositório um arquiv
   "desc": "Clonagem, pull, push, auditoria de segurança (Dependabot, CodeQL) e gestão de issues no TermChat.",
   "author": {
     "name": "TermChat Core Team",
-    "github": "nicolaswjwkwk"
+    "github": "rlkbiloga-coder"
   },
   "perms": [
     "clipboard",
@@ -80,7 +80,7 @@ Todo plugin instalável via GitHub deve conter na raiz do repositório um arquiv
     "audit",
     "issues"
   ],
-  "repository": "https://github.com/nicolaswjwkwk/termchat"
+  "repository": "https://github.com/rlkbiloga-coder/termchat"
 }
 ```
 
@@ -145,8 +145,8 @@ Pesquisa plugins no catálogo local e em repositórios remotos do GitHub.
         "desc": "Clonagem, pull, push, auditoria de segurança (Dependabot, CodeQL) e gestão de issues no TermChat.",
         "perms": ["clipboard", "notifications"],
         "author": "TermChat Core Team",
-        "repository": "https://github.com/nicolaswjwkwk/termchat",
-        "manifest_url": "https://raw.githubusercontent.com/nicolaswjwkwk/termchat/main/termchat-plugin.json",
+        "repository": "https://github.com/rlkbiloga-coder/termchat",
+        "manifest_url": "https://raw.githubusercontent.com/rlkbiloga-coder/termchat/main/termchat-plugin.json",
         "installed": true,
         "source": "registry"
       }

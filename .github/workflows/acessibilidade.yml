@@ -22,7 +22,7 @@ jobs:
         continue-on-error: true
         run: |
           npm install -g lighthouse
-          lighthouse "https://nicolaswjwkwk.github.io/termchat/" \
+          lighthouse "https://rlkbiloga-coder.github.io/termchat/" \
             --output=json --output-path=/tmp/lh.json \
             --chrome-flags="--headless --no-sandbox" \
             --only-categories=accessibility --quiet

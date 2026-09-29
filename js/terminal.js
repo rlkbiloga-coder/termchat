@@ -315,7 +315,7 @@ class TermSandbox {
     switch (sub) {
       case 'audit':
       case 'review': {
-        const repo = args[1] || localStorage.getItem('tc_gh_selected_repo') || 'nicolaswjwkwk/termchat';
+        const repo = args[1] || localStorage.getItem('tc_gh_selected_repo') || 'rlkbiloga-coder/termchat';
         this.print(`🛡️ Escaneando Repositório GitHub: ${repo}...`, 'info');
         if (window.switchDockTab) window.switchDockTab('audit');
         if (window.startRepoAudit) {

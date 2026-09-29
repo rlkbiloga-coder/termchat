@@ -4,7 +4,7 @@
 #   1. Mantem o issue "Relatorio do Superagente" atualizado com o status
 #      de TODOS os agentes (verde/vermelho + ultima execucao).
 #   2. Mantem o issue "Comandos do Imperador" — a API de comandos.
-#      Somente o login nicolaswjwkwk (o Imperador) pode comandar la:
+#      Somente o login rlkbiloga-coder (o Imperador) pode comandar la:
 #        /status   -> relatorio completo de todos os agentes
 #        /rodar tudo -> dispara todos os agentes agora
 #        /rodar performance (ou outro nome) -> dispara so esse
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/github-script@v7
         with:
           script: |
-            const IMPERADOR = 'nicolaswjwkwk';
+            const IMPERADOR = 'rlkbiloga-coder';
             const { owner, repo } = context.repo;
             const comment = context.payload.comment;
             const issue = context.payload.issue;
@@ -172,7 +172,7 @@ jobs:
               owner, repo, labels: 'comandos-do-imperador', state: 'all', per_page: 50
             });
             const corpoCmd =
-              '👑 *Comandos do Imperador* (nicolaswjwkwk)\n\n' +
+              '👑 *Comandos do Imperador* (rlkbiloga-coder)\n\n' +
               'Comente neste issue para comandar a frota:\n\n' +
               '* `/status` — situacao de todos os agentes\n' +
               '* `/rodar tudo` — dispara todos os agentes agora\n' +

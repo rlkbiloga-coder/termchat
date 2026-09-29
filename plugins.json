@@ -429,7 +429,7 @@
     { "id": "git-repo-47", "name": "naptha/tesseract.js", "cat": "git-repo", "version": "5.1", "desc": "OCR em puro JavaScript para browser e Node.", "capabilities": ["ocr"] },
     { "id": "git-repo-48", "name": "qpdf/qpdf", "cat": "git-repo", "version": "11.9", "desc": "Ferramenta de manipulação de arquivos PDF.", "capabilities": ["pdf"] },
     { "id": "git-repo-49", "name": "ffmpegwasm/ffmpeg.wasm", "cat": "git-repo", "version": "0.12", "desc": "FFmpeg compilado para WebAssembly.", "capabilities": ["ffmpeg", "wasm"] },
-    { "id": "git-repo-50", "name": "nicolaswjwkwk/termchat", "cat": "git-repo", "version": "2.1.0", "desc": "Repositório central do TermChat IDE Platform.", "capabilities": ["termchat", "ide"] },
+    { "id": "git-repo-50", "name": "rlkbiloga-coder/termchat", "cat": "git-repo", "version": "2.1.0", "desc": "Repositório central do TermChat IDE Platform.", "capabilities": ["termchat", "ide"] },
     { "id": "imp-1", "name": "Auto-Save Workspace Recovery", "cat": "ux", "version": "1.0.0", "desc": "Salvamento e restauração automática de rascunhos em IndexedDB.", "capabilities": ["recovery"] },
     { "id": "imp-2", "name": "Keyboard Shortcut Customizer", "cat": "ux", "version": "1.0.0", "desc": "Mapeamento personalizado de atalhos de teclado globais.", "capabilities": ["shortcuts"] },
     { "id": "imp-3", "name": "Zen Mode Fullscreen Editor", "cat": "ui", "version": "1.0.0", "desc": "Modo de foco total sem distrações na tela.", "capabilities": ["zen-mode"] },

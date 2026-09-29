@@ -1177,7 +1177,7 @@ function renderAuditPanel() {
   const repoAudit = window.TermGit?.lastRepoAudit || store.get('tc_last_repo_audit', null);
   const codeReview = window.TermGit?.lastCodeReview || store.get('tc_last_code_review', null);
 
-  const currentRepo = localStorage.getItem('tc_gh_selected_repo') || 'nicolaswjwkwk/termchat';
+  const currentRepo = localStorage.getItem('tc_gh_selected_repo') || 'rlkbiloga-coder/termchat';
   const score = auditActiveSubtab === 'repo'
     ? (repoAudit?.securityScore ?? 92)
     : (codeReview?.overallScore ?? 88);
@@ -1456,7 +1456,7 @@ function renderCodeReviewContent(review) {
 
 async function startRepoAudit(repoName) {
   if (!window.TermGit) return;
-  const target = repoName || localStorage.getItem('tc_gh_selected_repo') || prompt('Digite o repositório GitHub para auditar (ex: dono/repo):', 'nicolaswjwkwk/termchat');
+  const target = repoName || localStorage.getItem('tc_gh_selected_repo') || prompt('Digite o repositório GitHub para auditar (ex: dono/repo):', 'rlkbiloga-coder/termchat');
   if (!target || !target.trim()) return;
 
   switchDockTab('audit');
@@ -1765,7 +1765,7 @@ function getAgentMemory() {
     stack: 'Node.js (v22), Express, HTML5/CSS3 Moderno, ES6+ Modular',
     design_system: 'Dark Obsidian / Cyberpunk IDE, Anti-AI slop, Zero pill static badges',
     branch: 'main',
-    repo: 'nicolaswjwkwk/termchat',
+    repo: 'rlkbiloga-coder/termchat',
     regras: 'Preservar comandos clássicos, sem mockups, código 100% funcional'
   });
 }

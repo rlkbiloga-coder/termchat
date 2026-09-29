@@ -1,5 +1,5 @@
 # robots.txt for TermChat Web IDE
-# https://nicolaswjwkwk.github.io/termchat/
+# https://rlkbiloga-coder.github.io/termchat/
 
 User-agent: *
 Allow: /
@@ -14,4 +14,4 @@ Disallow: /api/
 Disallow: /auth/callback
 
 # Sitemap
-Sitemap: https://nicolaswjwkwk.github.io/termchat/sitemap.xml
+Sitemap: https://rlkbiloga-coder.github.io/termchat/sitemap.xml

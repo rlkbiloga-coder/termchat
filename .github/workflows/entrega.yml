@@ -2,7 +2,7 @@
 #
 # Este agente recebe cada push na main, valida tudo (sintaxe JS, JSONs,
 # PWA) e publica o site no GitHub Pages:
-#   https://nicolaswjwkwk.github.io/termchat/
+#   https://rlkbiloga-coder.github.io/termchat/
 #
 # Usa apenas o token do workflow (secrets.GITHUB_TOKEN) e as Actions
 # oficiais open source do GitHub. Nao usa token do Superagente Base44.

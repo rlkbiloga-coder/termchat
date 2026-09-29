@@ -4,7 +4,7 @@ on:
     branches: [main]
   schedule:
     # Terca e sexta, 07:00 UTC (04:00 Brasilia) — fora do horario de uso
-    - cron: "0 7 * * 2,5"
+    - cron: "0 7 * * 2"   # semanal, terca
   workflow_dispatch:
 permissions:
   contents: write
@@ -64,7 +64,7 @@ jobs:
         run: |
           python3 - <<'PYEOF'
           import sys, urllib.request
-          base = "https://nicolaswjwkwk.github.io/termchat"
+          base = "https://rlkbiloga-coder.github.io/termchat"
           try:
               html = urllib.request.urlopen(base + "/", timeout=30).read().decode()
               if "TermChat" not in html:
