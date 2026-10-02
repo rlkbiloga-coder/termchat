@@ -1,6 +1,6 @@
 {
   "name": "termchat",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "TermChat — chatbot leve estilo terminal com plugins gratuitos. 100% open source.",
   "type": "module",
   "main": "server.js",
