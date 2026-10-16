@@ -76,4 +76,4 @@ jobs:
           path: .
       - name: Publicar
         id: publicar
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
