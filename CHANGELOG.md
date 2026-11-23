@@ -1,5 +1,5 @@
 # Changelog do TermChat
 
-Atualizado automaticamente pelo Agente de Conteudo em 2026-11-16.
+Atualizado automaticamente pelo Agente de Conteudo em 2026-11-23.
 
-## Commits desde v1.0.8
+## Commits desde v1.0.9
